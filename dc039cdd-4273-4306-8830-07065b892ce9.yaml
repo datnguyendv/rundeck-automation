@@ -1,0 +1,123 @@
+- defaultTab: nodes
+  description: |-
+    NGINX WebServer diagnostics and Recovery.
+
+    This job verifies the NGINX status and tries to start if the service is down.
+  executionEnabled: true
+  group: Use Cases/Incident Response Examples/Web Service
+  id: dc039cdd-4273-4306-8830-07065b892ce9
+  loglevel: INFO
+  name: WebSever Diagnostics and Recovery
+  nodeFilterEditable: false
+  nodefilters:
+    dispatch:
+      excludePrecedence: true
+      keepgoing: false
+      rankOrder: ascending
+      successOnEmptyNodeFilter: false
+      threadcount: '1'
+    filter: 'name: ${option.filter}'
+  nodesSelectedByDefault: true
+  options:
+  - name: filter
+    value: node1
+  - name: service
+    value: nginx
+  - name: tcp_port
+    value: '80'
+  plugins:
+    ExecutionLifecycle: null
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - description: Friendly message
+      exec: echo "Starting ${option.service} service diagnostics..."
+    - description: Collect information
+      fileExtension: .sh
+      interpreterArgsQuoted: false
+      plugins:
+        LogFilter:
+        - config:
+            invalidKeyPattern: \s|\$|\{|\}|\\
+            logData: 'true'
+            regex: ^(status)=*(.+)$
+          type: key-value-data
+        - config:
+            invalidKeyPattern: \s|\$|\{|\}|\\
+            logData: 'true'
+            regex: ^(code)=*(.+)$
+          type: key-value-data
+        - config:
+            invalidKeyPattern: \s|\$|\{|\}|\\
+            logData: 'true'
+            regex: ^(active_connections)=*(.+)$
+          type: key-value-data
+      script: |-
+        ###################################################################
+        # 1. get the service status using pgrep
+        ###################################################################
+        if pgrep "@option.service@" >/dev/null; then
+          echo "status=running"
+        else
+          echo "status=stopped"
+        fi
+
+        ###################################################################
+        # 2. get the server http code
+        ###################################################################
+        echo "code=$(curl -sL -w "%{http_code}\\n" "http://@node.hostname@:@option.tcp_port@" -o /dev/null)"
+
+        ###################################################################
+        # 3. get active connections
+        ###################################################################
+        echo "active_connections=$(netstat | grep http | wc -l)"
+
+        # time to check the output
+        sleep 5
+      scriptInterpreter: /bin/bash
+    - description: 'Restore the configuration, front end and restart the service'
+      fileExtension: .sh
+      interpreterArgsQuoted: false
+      plugins:
+        LogFilter:
+        - config:
+            invalidKeyPattern: \s|\$|\{|\}|\\
+            logData: 'true'
+            regex: ^(recheck)=*(.+)$
+          type: key-value-data
+      script: "# current status\necho \"@option.service@ is @data.status@ (code @data.code@,\
+        \ @data.active_connections@ active connections)\"\n\n# if the service is stopped\n\
+        if [ @data.status@ = 'stopped' ] || [ @data.code@ -ne 200 ]\n    then\n  \
+        \      ###################################################################\n\
+        \        # 1. use latest nginx valid conf fiile\n        ###################################################################\n\
+        \        echo \"Updating with latest valid configuration...\"\n        # cp\
+        \ /backup/webserver/conf/nginx.conf /etc/nginx\n        \n        ###################################################################\n\
+        \        # 2. restore latest front end from backus\n        ###################################################################\n\
+        \        echo \"Recovering front end website..\"\n        # cp /backup/webserver/frontend/*\
+        \ /var/www/html\n        \n        ###################################################################\n\
+        \        # 3. try to restart the service\n        ###################################################################\n\
+        \        echo \"Restarting the service...\"\n        sudo /etc/init.d/@option.service@\
+        \ start\n        \n        # wait 15 seconds\n        sleep 15\n    \n   \
+        \     ###################################################################\n\
+        \        # 4. check the process status again.\n        ###################################################################\n\
+        \        if pgrep \"@option.service@\" >/dev/null; then\n            echo\
+        \ \"recheck=started\"\n        else\n            echo \"recheck=stopped\"\n\
+        \        fi \n    else\n        # all ok.\n        echo \"Service @option.service@\
+        \ is ok ($(date))\"\nfi\n\n# time to check the output\nsleep 5"
+      scriptInterpreter: /bin/bash
+    - description: Check the service again
+      fileExtension: .sh
+      interpreterArgsQuoted: false
+      script: "###################################################################\n\
+        # 1. if the service is stopped\n###################################################################\n\
+        if [ \"@data.recheck@\" = \"stopped\" ]; then\n    # friendly  message\n \
+        \   echo \"unable to reload @option.service@ service\"\n    \n    # fail and\
+        \ notify via email\n    exit 1\nelif [ \"@data.recheck@\" = \"started\" ];\
+        \ then\n    # friendly message\n    echo \"The @option.service@ service is\
+        \ back! (Active connections: $(netstat | grep http | wc -l))\"\nelse\n   \
+        \ # nothins happens\n    echo \"All ok :-)\"\nfi"
+      scriptInterpreter: /bin/bash
+    keepgoing: false
+    strategy: node-first
+  uuid: dc039cdd-4273-4306-8830-07065b892ce9
+
