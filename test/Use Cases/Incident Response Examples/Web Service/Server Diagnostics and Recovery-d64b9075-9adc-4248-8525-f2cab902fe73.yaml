@@ -1,0 +1,57 @@
+- defaultTab: nodes
+  description: "Server Diagnostics and Recovery.\n\nThis is the parent job of the\
+    \ system diagnostics and recovery Incident Response Web Service example.\n\nThe\
+    \ incident response example uses [ciao](https://github.com/brotandgames/ciao)\
+    \ image (built-in in [this](http://localhost:3000) environment). To start monitoring\
+    \ the node1.\n\n1) Open the ciao [console](http://localhost:3000) (user: admin,\
+    \ password: admin).\n2) Click on the \"+ Check\" button.\n3) Put \"WebServer\"\
+    \ on the \"Name\" textbox.\n4) Click on the \"Active\" checkbox.\n5) Put http://node1:80\
+    \ on the \"URL\" textbox.\n6) Put \"*/1 * * * *\" on the Cron textbox (ciao will\
+    \ check the service every minute).\n7) Click on the \"Create Check\" button.\n\
+    \nNow Ciao is monitoring the NGINX webserver on node1 remote node. \n\nBack to\
+    \ Rundeck and run the Administration > Linux > Stop a Service job and check the\
+    \ Activity page to see this job triggered from ciao.\n"
+  executionEnabled: true
+  group: Use Cases/Incident Response Examples/Web Service
+  id: d64b9075-9adc-4248-8525-f2cab902fe73
+  loglevel: INFO
+  name: Server Diagnostics and Recovery
+  nodeFilterEditable: false
+  notification:
+    onfailure:
+      email:
+        attachLog: true
+        attachLogInFile: true
+        recipients: itcrew@example.org
+        subject: Web Service is down!
+  notifyAvgDurationThreshold: null
+  options:
+  - name: filter
+    value: node1
+  plugins:
+    ExecutionLifecycle: null
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - jobref:
+        group: Use Cases/Incident Response Examples/Web Service
+        importOptions: true
+        name: Memory Diagnostics
+        nodeStep: 'true'
+        uuid: 47e4caa0-8b97-4baf-a816-906a53b9af50
+    - jobref:
+        group: Use Cases/Incident Response Examples/Web Service
+        importOptions: true
+        name: Disk Diagnostics
+        nodeStep: 'true'
+        uuid: 9e173b98-4789-4017-99f9-3c6952d72bb5
+    - jobref:
+        group: Use Cases/Incident Response Examples/Web Service
+        importOptions: true
+        name: WebSever Diagnostics and Recovery
+        nodeStep: 'true'
+        uuid: 0566ebbe-be81-4b6d-abc2-b1b209ebe31b
+    keepgoing: false
+    strategy: node-first
+  uuid: d64b9075-9adc-4248-8525-f2cab902fe73
+
