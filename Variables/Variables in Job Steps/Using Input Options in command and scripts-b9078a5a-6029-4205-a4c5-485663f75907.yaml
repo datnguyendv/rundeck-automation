@@ -1,0 +1,42 @@
+- defaultTab: nodes
+  description: "This job corresponds to the *Passing Variables in Job Steps* Tutorial.\
+    \ \n[Tutorial Link](https://docs.rundeck.com/docs/learning/howto/passing-variables.html)\n\
+    \nThe syntax to use values in the steps after it is captured: <br/> \n<ul><li>Commands\
+    \ and step input boxes ${option.keyname}</li> \n<li>Inline script step @option.keyname@</li></ul>"
+  executionEnabled: true
+  group: Variables/Variables in Job Steps
+  id: b9078a5a-6029-4205-a4c5-485663f75907
+  loglevel: INFO
+  name: Using Input Options in command and scripts
+  nodeFilterEditable: false
+  options:
+  - label: My Input
+    name: input_key
+    value: One
+    values:
+    - Five
+    - Four
+    - One
+    - Three
+    - Two
+    valuesListDelimiter: ','
+  plugins:
+    ExecutionLifecycle: null
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - description: Input value on child job
+      exec: 'echo This is the option value: ${option.input_key} '
+    - description: Option in a script
+      plugins:
+        LogFilter:
+        - config:
+            invalidKeyPattern: \s|\$|\{|\}|\\
+            logData: 'true'
+            regex: ^RUNDECK:DATA:\s*([^\s]+?)\s*=\s*(.+)$
+          type: key-value-data
+      script: 'echo This is the option value in a script: @option.input_key@'
+    keepgoing: false
+    strategy: node-first
+  uuid: b9078a5a-6029-4205-a4c5-485663f75907
+

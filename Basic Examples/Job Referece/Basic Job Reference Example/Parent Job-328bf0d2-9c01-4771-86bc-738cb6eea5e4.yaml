@@ -1,0 +1,25 @@
+- defaultTab: nodes
+  description: "Child job example of a basic Job Reference Step. \n\nRundeck jobs\
+    \ can run another job, this is also known as \"Job Reference Step\". This is the\
+    \ Parent Job.\n\nMore information [here](https://docs.rundeck.com/docs/manual/node-steps/builtin.html#job-reference-step)."
+  executionEnabled: true
+  group: Basic Examples/Job Referece/Basic Job Reference Example
+  id: 328bf0d2-9c01-4771-86bc-738cb6eea5e4
+  loglevel: INFO
+  name: Parent Job
+  nodeFilterEditable: false
+  plugins:
+    ExecutionLifecycle: null
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - description: Call the child job using Job Reference Step
+      jobref:
+        group: Basic Examples/Job Referece/Basic Job Reference Example
+        name: Child Job
+        nodeStep: 'true'
+        uuid: 25403be6-c103-472d-aafa-6da70530aaa7
+    keepgoing: false
+    strategy: node-first
+  uuid: 328bf0d2-9c01-4771-86bc-738cb6eea5e4
+
