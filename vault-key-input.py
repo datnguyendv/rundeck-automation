@@ -22,7 +22,7 @@ def generate_job_data(job_id: str, execution_id: str) -> Dict:
             "name": job_name,
             "keys": vault_keys_raw,
             "job_id": job_id,
-            "execution_id": execution_id,
+            "execution_uuid": execution_id,
         }
 
         # --- Add options ---
