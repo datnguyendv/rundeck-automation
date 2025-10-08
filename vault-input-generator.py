@@ -1,58 +1,215 @@
-import os, json, subprocess
+import os
+import json
+import subprocess
+import requests
 from pathlib import Path
+from typing import Dict, List
 
-# --- Generate data ---
-job_name = "Add vault value for execution " + os.getenv("RD_JOB_EXECID", "123")
-vault_name = os.getenv("RD_OPTION_VAULTNAME", "test")
-namespace = os.getenv("RD_OPTION_NAMESPACE", "default")
-action = os.getenv("RD_OPTION_ACTION", "create")
-vault_keys_raw = os.getenv("RD_OPTION_VAULTKEY", "NPM_TOKEN,GCP")
 
-vault_keys = [k.strip() for k in vault_keys_raw.split(",") if k.strip()]
+def generate_job_data() -> Dict:
+    try:
+        vault_name = os.getenv("RD_OPTION_VAULTNAME", "test")
+        job_name = "Add vault value for " + vault_name
+        namespace = os.getenv("RD_OPTION_NAMESPACE", "default")
+        action = os.getenv("RD_OPTION_ACTION", "create")
+        vault_keys_raw = os.getenv("RD_OPTION_VAULTKEY", "NPM_TOKEN,GCP")
 
-result = {"options": [], "group": "approval", "name": job_name, "key": vault_keys_raw}
+        vault_keys = [k.strip() for k in vault_keys_raw.split(",") if k.strip()]
 
-# --- Add options ---
-result["options"].append({"name": "VaultName", "description": "", "value": vault_name})
-result["options"].append({"name": "namespace", "description": "", "value": namespace})
-result["options"].append({"name": "Action", "description": "", "value": action})
+        result = {
+            "options": [],
+            "group": "approval",
+            "name": job_name,
+            "key": vault_keys_raw
+        }
 
-# --- VaultToken ---
-result["options"].append({
-    "name": "VaultToken",
-    "description": "",
-    "required": True,
-    "hidden": True,
-    "secure": True,
-    "storagePath": "keys/project/vaul-v1/Token",
-    "valueExposed": True
-})
+        # --- Add options ---
+        result["options"].append({"name": "VaultName", "description": "", "value": vault_name})
+        result["options"].append({"name": "namespace", "description": "", "value": namespace})
+        result["options"].append({"name": "Action", "description": "", "value": action})
 
-# --- Add each VaultKey ---
-for key in vault_keys:
-    result["options"].append({
-        "name": key,
-        "description": f"Enter value for key {key}",
-        "required": True
-    })
+        # --- VaultToken ---
+        result["options"].append({
+            "name": "VaultToken",
+            "description": "",
+            "required": True,
+            "hidden": True,
+            "secure": True,
+            "storagePath": "keys/project/vaul-v1/Token",
+            "valueExposed": True
+        })
 
-# --- Print JSON for debug ---
-print("🧩 Generated input data:")
-print(json.dumps(result, indent=4))
+        # --- Add each VaultKey ---
+        for key in vault_keys:
+            result["options"].append({
+                "name": key,
+                "description": f"Enter value for key {key}",
+                "required": True
+            })
 
-# --- Call render-job.py ---
-BASE_DIR = Path(__file__).resolve().parent
-render_script = BASE_DIR / "render-job.py"
-template_name = "vault-value.j2"  # bạn có thể đổi theo tên file template mong muốn
+        print("🧩 Generated input data:")
+        print(json.dumps(result, indent=4))
+        return result
+    
+    except Exception as e:
+        print(f"❌ Error generating job data: {str(e)}")
+        raise
 
-cmd = [
-    "python3",
-    str(render_script),
-    "--template", template_name,
-    "--data", json.dumps(result)
-]
-print(cmd)
 
-print(f"🚀 Running render-job.py with template '{template_name}'...")
-subprocess.run(cmd, check=True)
+def render_job_template(data: Dict, output_file: Path, template_name: str = "vault-value.j2") -> None:
+    """Gọi render-job.py để render template thành file YAML."""
+    try:
+        base_dir = Path(__file__).resolve().parent
+        render_script = base_dir / "render-job.py"
+
+        if not render_script.exists():
+            raise FileNotFoundError(f"Render script not found: {render_script}")
+
+        cmd = [
+            "python3",
+            str(render_script),
+            "--template", template_name,
+            "--data", json.dumps(data),
+            "--output", str(output_file)
+        ]
+
+        print(f"🚀 Running render-job.py with template '{template_name}'...")
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        
+        if result.stdout:
+            print(result.stdout)
+        
+        print(f"✅ Template rendered successfully to {output_file}")
+    
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error running render-job.py: {str(e)}")
+        if e.stderr:
+            print(f"stderr: {e.stderr}")
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error in render_job_template: {str(e)}")
+        raise
+
+
+def import_job_to_rundeck(output_file: Path) -> None:
+    """Import job YAML vào Rundeck thông qua API sử dụng requests."""
+    try:
+        rundeck_token = os.getenv("RD_TOKEN", "Vczci5ltVL6coadjTQyemtAmML9lNJLU")
+        rundeck_url = os.getenv("RD_URL", "http://rundeck:4440")
+        project_name = os.getenv("RD_PROJECT", "vault-management")
+
+        # Validate file exists
+        if not output_file.exists():
+            raise FileNotFoundError(f"Output file not found: {output_file}")
+
+        # Read YAML file
+        with open(output_file, 'r') as f:
+            yaml_content = f.read()
+
+        # Prepare request
+        url = f"{rundeck_url}/api/41/project/{project_name}/jobs/import"
+        headers = {
+            "X-Rundeck-Auth-Token": rundeck_token,
+            "Content-Type": "application/yaml"
+        }
+
+        print(f"📤 Importing job to Rundeck from {output_file}...")
+        print(f"   URL: {url}")
+
+        # Make request with timeout
+        response = requests.post(
+            url,
+            headers=headers,
+            data=yaml_content,
+            timeout=30
+        )
+
+        # Check response
+        response.raise_for_status()
+        
+        print("✅ Job imported successfully!")
+        print(f"   Status Code: {response.status_code}")
+        
+        # Try to parse and display response
+        try:
+            response_data = response.json()
+            print(f"   Response: {json.dumps(response_data, indent=2)}")
+        except json.JSONDecodeError:
+            print(f"   Response: {response.text[:500]}")
+
+    except requests.exceptions.Timeout:
+        print("❌ Request timeout: Rundeck did not respond in time")
+        raise
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ Connection error: Cannot connect to Rundeck at {rundeck_url}")
+        print(f"   Details: {str(e)}")
+        raise
+    except requests.exceptions.HTTPError as e:
+        print(f"❌ HTTP error: {e.response.status_code}")
+        print(f"   Response: {e.response.text[:500]}")
+        raise
+    except FileNotFoundError as e:
+        print(f"❌ File error: {str(e)}")
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error importing job to Rundeck: {str(e)}")
+        raise
+
+
+def main() -> None:
+    """Main flow: generate -> render -> import"""
+    try:
+        print("=" * 60)
+        print("🚀 Starting Rundeck Job Creation Process")
+        print("=" * 60)
+
+        # Get environment variables
+        job_id = os.getenv("RD_JOB_ID", "jobid")
+        execution_uuid = os.getenv("RD_JOB_EXECUTIONUUID", "execuuid")
+        exec_id = os.getenv("RD_JOB_EXECID", "123")
+
+        print(f"📋 Job ID: {job_id}")
+        print(f"📋 Execution UUID: {execution_uuid}")
+        print(f"📋 Exec ID: {exec_id}")
+
+        # --- Prepare output directory ---
+        output_dir = Path(f"/tmp/{job_id}/{execution_uuid}")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = output_dir / f"approval_job_{exec_id}.yaml"
+
+        print(f"📁 Output directory: {output_dir}")
+        print(f"📄 Output file: {output_file}")
+
+        # --- Step 1: Generate data ---
+        print("\n" + "=" * 60)
+        print("Step 1: Generating job data...")
+        print("=" * 60)
+        data = generate_job_data()
+
+        # --- Step 2: Render template ---
+        print("\n" + "=" * 60)
+        print("Step 2: Rendering job template...")
+        print("=" * 60)
+        render_job_template(data, output_file)
+
+        # --- Step 3: Import to Rundeck ---
+        print("\n" + "=" * 60)
+        print("Step 3: Importing job to Rundeck...")
+        print("=" * 60)
+        import_job_to_rundeck(output_file)
+
+        print("\n" + "=" * 60)
+        print("✅ ALL STEPS COMPLETED SUCCESSFULLY!")
+        print("=" * 60)
+
+    except Exception as e:
+        print("\n" + "=" * 60)
+        print("❌ PROCESS FAILED!")
+        print("=" * 60)
+        print(f"Error: {str(e)}")
+        raise
+
+
+if __name__ == "__main__":
+    main()
 
