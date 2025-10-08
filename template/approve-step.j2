@@ -1,0 +1,7 @@
+    - configuration:
+        file: /tmp/{{job_id}}/{{execution_uuid}}/approved.yaml
+        interval: '60'
+        maxtry: '10'
+      description: Waiting For Approve
+      nodeStep: true
+      type: nixy-waitfor-file-exists

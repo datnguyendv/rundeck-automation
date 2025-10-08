@@ -8,5 +8,11 @@
           echo $EXEC_LOCATION
           ls $EXEC_LOCATION
           python3 $EXEC_LOCATION/vault-key-input.py -i $RD_OPTION_VAULTKEY
+      {% include "approve-step.j2" %}
+      - autoSecureInput: 'false'
+        description: Finished Output
+        passSecureInput: 'false'
+        script: |-
+          echo "Job finished successfully."
     keepgoing: false
     strategy: node-first
