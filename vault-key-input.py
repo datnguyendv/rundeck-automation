@@ -3,10 +3,10 @@ import json
 import subprocess
 import requests
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 
-def generate_job_data() -> Dict:
+def generate_job_data(job_id: str, execution_id: str) -> Dict:
     try:
         vault_name = os.getenv("RD_OPTION_VAULTNAME", "test")
         namespace = os.getenv("RD_OPTION_NAMESPACE", "default")
@@ -20,7 +20,9 @@ def generate_job_data() -> Dict:
             "options": [],
             "group": "approval",
             "name": job_name,
-            "keys": vault_keys_raw
+            "keys": vault_keys_raw,
+            "job_id": job_id,
+            "execution_id": execution_id,
         }
 
         # --- Add options ---
@@ -50,7 +52,7 @@ def generate_job_data() -> Dict:
         print("🧩 Generated input data:")
         print(json.dumps(result, indent=4))
         return result
-    
+
     except Exception as e:
         print(f"❌ Error generating job data: {str(e)}")
         raise
@@ -98,15 +100,12 @@ def import_job_to_rundeck(output_file: Path) -> None:
         rundeck_url = os.getenv("RD_URL", "http://rundeck:4440")
         project_name = os.getenv("RD_PROJECT", "vault-management")
 
-        # Validate file exists
         if not output_file.exists():
             raise FileNotFoundError(f"Output file not found: {output_file}")
 
-        # Read YAML file
         with open(output_file, 'r') as f:
             yaml_content = f.read()
 
-        # Prepare request
         url = f"{rundeck_url}/api/41/project/{project_name}/jobs/import"
         headers = {
             "X-Rundeck-Auth-Token": rundeck_token,
@@ -116,40 +115,20 @@ def import_job_to_rundeck(output_file: Path) -> None:
         print(f"📤 Importing job to Rundeck from {output_file}...")
         print(f"   URL: {url}")
 
-        # Make request with timeout
-        response = requests.post(
-            url,
-            headers=headers,
-            data=yaml_content,
-            timeout=30
-        )
-
-        # Check response
+        response = requests.post(url, headers=headers, data=yaml_content, timeout=30)
         response.raise_for_status()
         
         print("✅ Job imported successfully!")
         print(f"   Status Code: {response.status_code}")
         
-        # Try to parse and display response
         try:
             response_data = response.json()
             print(f"   Response: {json.dumps(response_data, indent=2)}")
         except json.JSONDecodeError:
             print(f"   Response: {response.text[:500]}")
 
-    except requests.exceptions.Timeout:
-        print("❌ Request timeout: Rundeck did not respond in time")
-        raise
-    except requests.exceptions.ConnectionError as e:
-        print(f"❌ Connection error: Cannot connect to Rundeck at {rundeck_url}")
-        print(f"   Details: {str(e)}")
-        raise
-    except requests.exceptions.HTTPError as e:
-        print(f"❌ HTTP error: {e.response.status_code}")
-        print(f"   Response: {e.response.text[:500]}")
-        raise
-    except FileNotFoundError as e:
-        print(f"❌ File error: {str(e)}")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Request error: {str(e)}")
         raise
     except Exception as e:
         print(f"❌ Unexpected error importing job to Rundeck: {str(e)}")
@@ -172,7 +151,6 @@ def main() -> None:
         print(f"📋 Execution UUID: {execution_uuid}")
         print(f"📋 Exec ID: {exec_id}")
 
-        # --- Prepare output directory ---
         output_dir = Path(f"/tmp/{job_id}/{execution_uuid}")
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / f"approval_job_{exec_id}.yaml"
@@ -180,11 +158,11 @@ def main() -> None:
         print(f"📁 Output directory: {output_dir}")
         print(f"📄 Output file: {output_file}")
 
-        # --- Step 1: Generate data ---
+        # --- Step 1: Generate data  ---
         print("\n" + "=" * 60)
         print("Step 1: Generating job data...")
         print("=" * 60)
-        data = generate_job_data()
+        data = generate_job_data(job_id, execution_uuid)
 
         # --- Step 2: Render template ---
         print("\n" + "=" * 60)
