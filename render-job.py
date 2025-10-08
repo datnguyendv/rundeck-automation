@@ -1,44 +1,113 @@
 import yaml
 import json
 import argparse
+import sys
 from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
 import re
 
-# --- CLI arguments ---
-parser = argparse.ArgumentParser(description="Render Rundeck job from Jinja template")
-parser.add_argument("--template", required=True, help="Template filename (e.g. job-base.j2)")
-parser.add_argument("--data", required=True, help="JSON string containing job data")
-args = parser.parse_args()
 
-# --- Paths ---
-BASE_DIR = Path(__file__).resolve().parent
-TEMPLATE_DIR = BASE_DIR / "template"
-OUTPUT_DIR = BASE_DIR / "projects" / "vault"
+def parse_arguments():
+    """Parse CLI arguments."""
+    parser = argparse.ArgumentParser(description="Render Rundeck job from Jinja template")
+    parser.add_argument("--template", required=True, help="Template filename (e.g. job-base.j2)")
+    parser.add_argument("--data", required=True, help="JSON string containing job data")
+    parser.add_argument("--output", required=False, help="Output file path (optional, defaults to stdout or auto-generated)")
+    return parser.parse_args()
 
-# --- Load data from argument ---
-data = json.loads(args.data)
 
-# --- Jinja Environment ---
-env = Environment(
-    loader=FileSystemLoader(str(TEMPLATE_DIR)),
-    trim_blocks=True,
-    lstrip_blocks=True,
-)
+def load_job_data(data_string: str) -> dict:
+    """Load and validate JSON data."""
+    try:
+        data = json.loads(data_string)
+        if not isinstance(data, dict):
+            raise ValueError("Data must be a JSON object")
+        return data
+    except json.JSONDecodeError as e:
+        print(f"❌ Error parsing JSON data: {str(e)}", file=sys.stderr)
+        raise
 
-template = env.get_template(args.template)
 
-# --- Render template ---
-output = template.render(**data)
+def render_template(template_name: str, data: dict, template_dir: Path) -> str:
+    """Render Jinja2 template with data."""
+    try:
+        if not template_dir.exists():
+            raise FileNotFoundError(f"Template directory not found: {template_dir}")
+        
+        env = Environment(
+            loader=FileSystemLoader(str(template_dir)),
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        
+        template = env.get_template(template_name)
+        output = template.render(**data)
+        
+        return output
+    
+    except Exception as e:
+        print(f"❌ Error rendering template '{template_name}': {str(e)}", file=sys.stderr)
+        raise
 
-# --- Generate job name safely ---
-raw_name = data.get("name", "rundeck-job")
-safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", raw_name.strip().lower())
-output_path = OUTPUT_DIR / f"{safe_name}.yaml"
 
-# --- Write output file ---
-OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
-with open(output_path, "w") as f:
-    f.write(output)
+def generate_safe_filename(name: str) -> str:
+    """Generate safe filename from job name."""
+    safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", name.strip().lower())
+    return f"{safe_name}.yaml"
 
-print(f"✅ Generated Rundeck job file: {output_path}")
+
+def write_output(content: str, output_path: Path = None) -> None:
+    """Write rendered content to file or stdout."""
+    try:
+        if output_path:
+            # Write to specified file
+            output_path.parent.mkdir(exist_ok=True, parents=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            print(f"✅ Generated Rundeck job file: {output_path}", file=sys.stderr)
+        else:
+            # Write to stdout
+            print(content)
+    
+    except IOError as e:
+        print(f"❌ Error writing output: {str(e)}", file=sys.stderr)
+        raise
+
+
+def main():
+    """Main execution flow."""
+    try:
+        # --- Parse arguments ---
+        args = parse_arguments()
+        
+        # --- Setup paths ---
+        BASE_DIR = Path(__file__).resolve().parent
+        TEMPLATE_DIR = BASE_DIR / "template"
+        
+        # --- Load data ---
+        data = load_job_data(args.data)
+        
+        # --- Render template ---
+        output = render_template(args.template, data, TEMPLATE_DIR)
+        
+        # --- Determine output path ---
+        if args.output:
+            # Use specified output path
+            output_path = Path(args.output)
+        else:
+            # If no output specified, write to stdout
+            output_path = None
+        
+        # --- Write output ---
+        write_output(output, output_path)
+        
+        return 0
+    
+    except Exception as e:
+        print(f"❌ Fatal error: {str(e)}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
