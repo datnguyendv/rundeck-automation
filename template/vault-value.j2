@@ -15,7 +15,7 @@
         autoSecureInput: "{{ autoSecureInput | default('false') }}"
         passSecureInput: "{{ passSecureInput | default('false') }}"
         script: |
-          echo "Approved by ${RD_JOB_USERNAME}" > /tmp/${RD_JOB_ID}/${RD_JOB_EXECUTIONUUID}/approved.yaml
+          echo "Approved by ${RD_JOB_USERNAME}" > /tmp/{{job_id}}/{{execution_uuid}}/approved.yaml
           echo "[SUCCESS] Secrets successfully ${RD_OPTION_ACTION}."
     keepgoing: false
     strategy: node-first
