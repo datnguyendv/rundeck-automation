@@ -9,9 +9,9 @@ from typing import Dict, List
 def generate_job_data() -> Dict:
     try:
         vault_name = os.getenv("RD_OPTION_VAULTNAME", "test")
-        job_name = "Add vault value for " + vault_name
         namespace = os.getenv("RD_OPTION_NAMESPACE", "default")
         action = os.getenv("RD_OPTION_ACTION", "create")
+        job_name = action + " vault value for " + vault_name
         vault_keys_raw = os.getenv("RD_OPTION_VAULTKEY", "NPM_TOKEN,GCP")
 
         vault_keys = [k.strip() for k in vault_keys_raw.split(",") if k.strip()]
