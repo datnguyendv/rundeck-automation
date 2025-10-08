@@ -1,0 +1,9 @@
+- defaultTab: nodes
+{% include "job-header.j2" %}
+  options:
+{% include "job-options.j2" %}
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: {{ scheduleEnabled | default("true") }}
+  sequence:
+

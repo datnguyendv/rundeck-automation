@@ -1,0 +1,10 @@
+  description: {{ description if description is defined else "''" }}
+  executionEnabled: {{ executionEnabled | default("true") }}
+{% if group is defined %}  group: {{ group }}
+{% endif %}
+{% if multipleExecutions is defined %}  multipleExecutions: {{ multipleExecutions | lower }}
+{% endif %}
+  loglevel: {{ loglevel | default("INFO") }}
+  name: {{ name }}
+  nodeFilterEditable: {{ nodeFilterEditable | default("true") }}
+

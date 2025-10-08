@@ -1,0 +1,47 @@
+{% for opt in options %}
+    - name: {{ opt.name }}
+      {% if opt.description is defined %}
+{% if '\n' in opt.description %}
+      description: |-
+{% for line in opt.description.split('\n') %}
+        {{ line }}
+{% endfor %}
+{% else %}
+      description: {{ opt.description }}
+{% endif %}
+{% else %}
+      description: ''
+{% endif %}
+{% if opt.label is defined %}      label: {{ opt.label }}
+{% endif %}
+{% if opt.value is defined %}      value: {{ opt.value }}
+{% endif %}
+{% if opt.required is defined %}      required: {{ opt.required | lower }}
+{% endif %}
+{% if opt.enforced is defined %}      enforced: {{ opt.enforced | lower }}
+{% endif %}
+{% if opt.hidden is defined %}      hidden: {{ opt.hidden | lower }}
+{% endif %}
+{% if opt.secure is defined %}      secure: {{ opt.secure | lower }}
+{% endif %}
+{% if opt.storagePath is defined %}      storagePath: {{ opt.storagePath }}
+{% endif %}
+{% if opt.valueExposed is defined %}      valueExposed: {{ opt.valueExposed | lower }}
+{% endif %}
+{% if opt.multivalued is defined %}      multivalued: {{ opt.multivalued | lower }}
+{% endif %}
+{% if opt.multivalueAllSelected is defined %}      multivalueAllSelected: {{ opt.multivalueAllSelected | lower }}
+{% endif %}
+{% if opt.delimiter is defined %}      delimiter: "{{ opt.delimiter }}"
+{% endif %}
+{% if opt.regex is defined %}      regex: {{ opt.regex }}
+{% endif %}
+{% if opt.valueIn is defined %}
+      values:
+{% for v in opt.valueIn.split(',') %}
+        - {{ v.strip() }}
+{% endfor %}
+      valuesListDelimiter: ","
+{% endif %}
+{% endfor %}
+

@@ -1,0 +1,47 @@
+- defaultTab: nodes
+  description: Approval for vault secret change
+  executionEnabled: true
+  group: approval
+  loglevel: INFO
+  name: Approval for execution 1960
+  nodeFilterEditable: true
+  options:
+    - name: VaultName
+      value: ct-logic-test
+    - name: namespace
+      value: Default
+    - name: action
+      value: create
+    - hidden: true
+      name: VaultToken
+      required: true
+      secure: true
+      storagePath: keys/project/vaul-v1/Token
+      valueExposed: true
+    - description: Enter value for key NPM_TOKEN
+      name: NPM_TOKEN
+      required: true
+    - description: Enter value for key GCP_TOKEN
+      name: GCP_TOKEN
+      required: true
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: true
+  sequence:
+    commands:
+      - autoSecureInput: "false"
+        description: Add vault into UI
+        passSecureInput: "false"
+        script: |-
+          export VAULT_ADDR="http://vault:8200"
+          export VAULT_PATH="gke/${RD_OPTION_VAULTNAME}"
+
+          python3 /tmp/vault-ui-generator.py -i NPM_TOKEN,GCP_TOKEN
+      - autoSecureInput: "false"
+        passSecureInput: "false"
+        script: |-
+          echo "Approved by ${RD_JOB_USERNAME}" > /tmp/approved_marker_1960
+          echo "[SUCCESS] Secrets successfully ${RD_OPTION_ACTION}."
+    keepgoing: false
+    strategy: node-first
+  uuid: 3c90465f-d76c-4328-9446-31fbc814ee39

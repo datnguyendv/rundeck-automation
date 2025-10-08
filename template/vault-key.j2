@@ -1,0 +1,11 @@
+{% include "job-base.j2" %}
+    commands:
+      - description: Add vault into UI
+        autoSecureInput: "{{ autoSecureInput | default('false') }}"
+        passSecureInput: "{{ passSecureInput | default('false') }}"
+        script: |
+          # This will add into 
+          echo "Test"
+          python3 vault-input-generator.py
+    keepgoing: false
+    strategy: node-first
