@@ -10,12 +10,12 @@
           export EXEC_LOCATION=$HOME/projects/$RD_JOB_PROJECT
           echo $EXEC_LOCATION
           ls $EXEC_LOCATION
-          python3 $EXEC_LOCATION/vault-ui-generator.py -i {{keys}}
+          python3 $EXEC_LOCATION/vault-value-input.py -i {{keys}}
       - description: Job completed
         autoSecureInput: "{{ autoSecureInput | default('false') }}"
         passSecureInput: "{{ passSecureInput | default('false') }}"
         script: |
-          echo "Approved by ${RD_JOB_USERNAME}" > /tmp/approved_marker_{{ RD_JOB_EXECID }}
+          echo "Approved by ${RD_JOB_USERNAME}" > /tmp/{job_id}/{execution_uuid}/approved.yaml
           echo "[SUCCESS] Secrets successfully ${RD_OPTION_ACTION}."
     keepgoing: false
     strategy: node-first
