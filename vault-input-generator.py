@@ -20,7 +20,7 @@ def generate_job_data() -> Dict:
             "options": [],
             "group": "approval",
             "name": job_name,
-            "key": vault_keys_raw
+            "keys": vault_keys_raw
         }
 
         # --- Add options ---

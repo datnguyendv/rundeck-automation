@@ -4,8 +4,9 @@
         autoSecureInput: "{{ autoSecureInput | default('false') }}"
         passSecureInput: "{{ passSecureInput | default('false') }}"
         script: |
-          # This will add into 
-          echo "Test"
-          python3 vault-input-generator.py
+          export EXEC_LOCATION=$HOME/projects/$RD_JOB_PROJECT
+          echo $EXEC_LOCATION
+          ls $EXEC_LOCATION
+          python3 $EXEC_LOCATION/vault-input-generator.py -i $RD_OPTION_VAULTKEY
     keepgoing: false
     strategy: node-first
