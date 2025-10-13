@@ -132,6 +132,7 @@ def import_job_to_rundeck(output_file: Path) -> str:
             if "succeeded" in response_data and len(response_data["succeeded"]) > 0:
                 job_info = response_data["succeeded"][0]
                 permalink = job_info.get("permalink") or "N/A"
+                print(f"href: {job_info.get("href")}")
                 print(f"🔗 Job Permalink: {permalink}")
                 return permalink
             else:
