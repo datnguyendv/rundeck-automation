@@ -159,7 +159,7 @@ def main() -> None:
         job_id = os.getenv("RD_JOB_ID", "jobid")
         execution_uuid = os.getenv("RD_JOB_EXECUTIONUUID", "execuuid")
         exec_id = os.getenv("RD_JOB_EXECID", "123")
-        user = os.getenv("RD_JOB_USER", "unknown")
+        user = os.getenv("RD_JOB_USERNAME", "unknown")
 
         print(f"📋 Job ID: {job_id}")
         print(f"📋 Execution UUID: {execution_uuid}")
