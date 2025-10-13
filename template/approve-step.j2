@@ -1,5 +1,5 @@
     - configuration:
-        file: /tmp/{{job_id}}/{{execution_uuid}}/approved.yaml
+        file: /tmp/${job.job_id}/${job.execution_uuid}/approved.yaml
         interval: '60'
         maxtry: '10'
       description: Waiting For Approve
