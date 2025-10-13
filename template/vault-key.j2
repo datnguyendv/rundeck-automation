@@ -1,17 +1,18 @@
 {% include "job-base.j2" %}
     commands:
       - description: Add vault into UI
-        autoSecureInput: "{{ autoSecureInput | default('false') }}"
-        passSecureInput: "{{ passSecureInput | default('false') }}"
+        {% include "clean-filter.j2" %}
+        autoSecureInput: "{{ autoSecureInput | default("false") }}"
+        passSecureInput: "{{ passSecureInput | default("false") }}"
         script: |
           export EXEC_LOCATION=$HOME/projects/$RD_JOB_PROJECT
           echo $EXEC_LOCATION
           ls $EXEC_LOCATION
           python3 $EXEC_LOCATION/vault-key-input.py -i $RD_OPTION_VAULTKEY
       {% include "approve-step.j2" %}
-      - autoSecureInput: 'false'
+      - autoSecureInput: "false"
         description: Finished Output
-        passSecureInput: 'false'
+        passSecureInput: "false"
         script: |-
           echo "Job finished successfully."
     keepgoing: false

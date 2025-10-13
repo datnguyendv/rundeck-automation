@@ -99,6 +99,7 @@ def main():
             output_path = None
         
         # --- Write output ---
+        print(output_path)
         write_output(output, output_path)
         
         return 0

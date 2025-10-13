@@ -1,7 +1,8 @@
-    - configuration:
-        file: /tmp/${RD_JOB_ID}/${RD_JOB_EXECUTIONUUID}/approved.yaml
-        interval: '60'
-        maxtry: '10'
-      description: Waiting For Approve
-      nodeStep: true
-      type: nixy-waitfor-file-exists
+      - configuration:
+          file: /tmp/${RD_JOB_ID}/${RD_JOB_EXECUTIONUUID}/approved.yaml
+          interval: "60"
+          maxtry: "10"
+        description: Waiting For Approve
+        nodeStep: true
+        type: nixy-waitfor-file-exists
+

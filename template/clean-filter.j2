@@ -1,0 +1,16 @@
+        plugins:
+          LogFilter:
+            - config:
+                invalidKeyPattern: \s|\$|\{|\}|\\
+                logData: "false"
+                name: href
+                regex: href:\s*"([^"]+)"
+                replaceFilteredResult: "false"
+              type: key-value-data
+            - config:
+                loglevel: verbose
+                matchLoglevel: normal
+                quietMatch: "true"
+                regex: href:\s*"([^"]+)"
+              type: quiet-output
+
