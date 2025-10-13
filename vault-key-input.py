@@ -93,8 +93,11 @@ def render_job_template(data: Dict, output_file: Path, template_name: str = "vau
         raise
 
 
-def import_job_to_rundeck(output_file: Path) -> None:
-    """Import job YAML vào Rundeck thông qua API sử dụng requests."""
+def import_job_to_rundeck(output_file: Path) -> str:
+    """
+    Import job YAML vào Rundeck thông qua API sử dụng requests.
+    Trả về permalink của job nếu import thành công.
+    """
     try:
         rundeck_token = os.getenv("RD_TOKEN", "Vczci5ltVL6coadjTQyemtAmML9lNJLU")
         rundeck_url = os.getenv("RD_URL", "http://rundeck:4440")
@@ -106,7 +109,7 @@ def import_job_to_rundeck(output_file: Path) -> None:
         with open(output_file, 'r') as f:
             yaml_content = f.read()
 
-        url = f"{rundeck_url}/api/41/project/{project_name}/jobs/import"
+        url = f"{rundeck_url}/api/54/project/{project_name}/jobs/import"
         headers = {
             "X-Rundeck-Auth-Token": rundeck_token,
             "Content-Type": "application/yaml"
@@ -124,8 +127,20 @@ def import_job_to_rundeck(output_file: Path) -> None:
         try:
             response_data = response.json()
             print(f"   Response: {json.dumps(response_data, indent=2)}")
+
+            # === Extract permalink ===
+            if "succeeded" in response_data and len(response_data["succeeded"]) > 0:
+                job_info = response_data["succeeded"][0]
+                permalink = job_info.get("permalink") or "N/A"
+                print(f"🔗 Job Permalink: {permalink}")
+                return permalink
+            else:
+                print("⚠️ Could not find job permalink in response.")
+                return "N/A"
+
         except json.JSONDecodeError:
             print(f"   Response: {response.text[:500]}")
+            return "N/A"
 
     except requests.exceptions.RequestException as e:
         print(f"❌ Request error: {str(e)}")
@@ -136,20 +151,20 @@ def import_job_to_rundeck(output_file: Path) -> None:
 
 
 def main() -> None:
-    """Main flow: generate -> render -> import"""
     try:
         print("=" * 60)
         print("🚀 Starting Rundeck Job Creation Process")
         print("=" * 60)
 
-        # Get environment variables
         job_id = os.getenv("RD_JOB_ID", "jobid")
         execution_uuid = os.getenv("RD_JOB_EXECUTIONUUID", "execuuid")
         exec_id = os.getenv("RD_JOB_EXECID", "123")
+        user = os.getenv("RD_JOB_USER", "unknown")
 
         print(f"📋 Job ID: {job_id}")
         print(f"📋 Execution UUID: {execution_uuid}")
         print(f"📋 Exec ID: {exec_id}")
+        print(f"👤 User: {user}")
 
         output_dir = Path(f"/tmp/{job_id}/{execution_uuid}")
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -158,23 +173,36 @@ def main() -> None:
         print(f"📁 Output directory: {output_dir}")
         print(f"📄 Output file: {output_file}")
 
-        # --- Step 1: Generate data  ---
+        # Step 1
         print("\n" + "=" * 60)
         print("Step 1: Generating job data...")
         print("=" * 60)
         data = generate_job_data(job_id, execution_uuid)
+        job_name = data["name"]
 
-        # --- Step 2: Render template ---
+        # Step 2
         print("\n" + "=" * 60)
         print("Step 2: Rendering job template...")
         print("=" * 60)
         render_job_template(data, output_file)
 
-        # --- Step 3: Import to Rundeck ---
+        # Step 3
         print("\n" + "=" * 60)
         print("Step 3: Importing job to Rundeck...")
         print("=" * 60)
-        import_job_to_rundeck(output_file)
+        job_link = import_job_to_rundeck(output_file)
+
+        # Step 4
+        print("\n" + "=" * 60)
+        print("Step 4: Sending Slack notification...")
+        print("=" * 60)
+        base_dir = Path(__file__).resolve().parent
+        notification_script = base_dir / "notification.py"
+
+        if not notification_script.exists():
+            print(f"⚠️ Slack notification skipped: {notification_script} not found.")
+        else:
+            subprocess.run(["python3", str(notification_script), job_name, job_link, user], check=True)
 
         print("\n" + "=" * 60)
         print("✅ ALL STEPS COMPLETED SUCCESSFULLY!")
@@ -190,4 +218,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
