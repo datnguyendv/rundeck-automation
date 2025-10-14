@@ -16,8 +16,6 @@ services:
     namespace: {{ namespace | default('default') }}
     action: {{ action | default('create') }}
     secrets:
-
-{%- for key in vault_keys %}
+{% for key in vault_keys %}
       - {{ key }}
-
-{%- endfor %}
+{% endfor %}
