@@ -201,10 +201,10 @@ def main() -> None:
         base_dir = Path(__file__).resolve().parent
         notification_script = base_dir / "notification.py"
 
-        if not notification_script.exists():
-            print(f"⚠️ Slack notification skipped: {notification_script} not found.")
-        else:
-            subprocess.run(["python3", str(notification_script), job_name, job_link, user], check=True)
+        # if not notification_script.exists():
+        #     print(f"⚠️ Slack notification skipped: {notification_script} not found.")
+        # else:
+        #     subprocess.run(["python3", str(notification_script), job_name, job_link, user], check=True)
 
         print("\n" + "=" * 60)
         print("✅ ALL STEPS COMPLETED SUCCESSFULLY!")
