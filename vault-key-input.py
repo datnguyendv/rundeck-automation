@@ -107,7 +107,7 @@ def generate_job_data(context: Dict[str, str]) -> Dict:
         for key in vault_keys:
             result["options"].append({
                 "name": key,
-                "description": f"Value for secret key: {key}",
+                "description": f"Value for secret key {key}",
                 "required": True
             })
         
