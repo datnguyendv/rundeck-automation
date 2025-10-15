@@ -1,21 +1,23 @@
+"""
+Script create Rundeck job for SWE input vault keys
+"""
 import os
 import json
-import subprocess
-import requests
 from pathlib import Path
 from typing import Dict
 
+from utils import TemplateRenderer, RundeckClient, send_to_slack
 
 def generate_job_data(job_id: str, execution_id: str) -> Dict:
+    """Generate job data from environment variables"""
     try:
         vault_name = os.getenv("RD_OPTION_VAULTNAME", "test")
         namespace = os.getenv("RD_OPTION_NAMESPACE", "default")
         action = os.getenv("RD_OPTION_ACTION", "create")
-        job_name = action + " vault value for " + vault_name
+        job_name = f"{action} vault value for {vault_name}"
         vault_keys_raw = os.getenv("RD_OPTION_VAULTKEY", "NPM_TOKEN,GCP")
-
         vault_keys = [k.strip() for k in vault_keys_raw.split(",") if k.strip()]
-
+        
         result = {
             "options": [],
             "group": "approval",
@@ -24,13 +26,13 @@ def generate_job_data(job_id: str, execution_id: str) -> Dict:
             "job_id": job_id,
             "execution_uuid": execution_id,
         }
-
-        # --- Add options ---
+        
+        # Add options
         result["options"].append({"name": "VaultName", "description": "", "value": vault_name})
         result["options"].append({"name": "namespace", "description": "", "value": namespace})
         result["options"].append({"name": "Action", "description": "", "value": action})
-
-        # --- VaultToken ---
+        
+        # VaultToken
         result["options"].append({
             "name": "VaultToken",
             "description": "",
@@ -40,115 +42,21 @@ def generate_job_data(job_id: str, execution_id: str) -> Dict:
             "storagePath": "keys/project/vaul-v1/Token",
             "valueExposed": True
         })
-
-        # --- Add each VaultKey ---
+        
+        # Add each VaultKey
         for key in vault_keys:
             result["options"].append({
                 "name": key,
                 "description": f"Enter value for key {key}",
                 "required": True
             })
-
+        
         print("🧩 Generated input data:")
         print(json.dumps(result, indent=4))
         return result
-
+    
     except Exception as e:
         print(f"❌ Error generating job data: {str(e)}")
-        raise
-
-
-def render_job_template(data: Dict, output_file: Path, template_name: str = "vault-value.j2") -> None:
-    """Gọi render-job.py để render template thành file YAML."""
-    try:
-        base_dir = Path(__file__).resolve().parent
-        render_script = base_dir / "render-job.py"
-
-        if not render_script.exists():
-            raise FileNotFoundError(f"Render script not found: {render_script}")
-
-        cmd = [
-            "python3",
-            str(render_script),
-            "--template", template_name,
-            "--data", json.dumps(data),
-            "--output", str(output_file)
-        ]
-
-        print(f"🚀 Running render-job.py with template '{template_name}'...")
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        
-        if result.stdout:
-            print(result.stdout)
-        
-        print(f"✅ Template rendered successfully to {output_file}")
-    
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error running render-job.py: {str(e)}")
-        if e.stderr:
-            print(f"stderr: {e.stderr}")
-        raise
-    except Exception as e:
-        print(f"❌ Unexpected error in render_job_template: {str(e)}")
-        raise
-
-
-def import_job_to_rundeck(output_file: Path) -> str:
-    """
-    Import job YAML vào Rundeck thông qua API sử dụng requests.
-    Trả về permalink của job nếu import thành công.
-    """
-    try:
-        rundeck_token = os.getenv("RD_TOKEN", "Vczci5ltVL6coadjTQyemtAmML9lNJLU")
-        rundeck_url = os.getenv("RD_URL", "http://rundeck:4440")
-        project_name = os.getenv("RD_PROJECT", "vault-management")
-
-        if not output_file.exists():
-            raise FileNotFoundError(f"Output file not found: {output_file}")
-
-        with open(output_file, 'r') as f:
-            yaml_content = f.read()
-
-        url = f"{rundeck_url}/api/54/project/{project_name}/jobs/import"
-        headers = {
-            "X-Rundeck-Auth-Token": rundeck_token,
-            "Content-Type": "application/yaml"
-        }
-
-        print(f"📤 Importing job to Rundeck from {output_file}...")
-        print(f"   URL: {url}")
-
-        response = requests.post(url, headers=headers, data=yaml_content, timeout=30)
-        response.raise_for_status()
-        
-        print("✅ Job imported successfully!")
-        print(f"   Status Code: {response.status_code}")
-        
-        try:
-            response_data = response.json()
-            print(f"   Response: {json.dumps(response_data, indent=2)}")
-
-            # === Extract permalink ===
-            if "succeeded" in response_data and len(response_data["succeeded"]) > 0:
-                job_info = response_data["succeeded"][0]
-                permalink = job_info.get("permalink") or "N/A"
-                job_link = job_info.get("href")
-                print(f"href: {job_link}")
-                print(f"🔗 Job Permalink: {permalink}")
-                return permalink
-            else:
-                print("⚠️ Could not find job permalink in response.")
-                return "N/A"
-
-        except json.JSONDecodeError:
-            print(f"   Response: {response.text[:500]}")
-            return "N/A"
-
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Request error: {str(e)}")
-        raise
-    except Exception as e:
-        print(f"❌ Unexpected error importing job to Rundeck: {str(e)}")
         raise
 
 
@@ -157,59 +65,59 @@ def main() -> None:
         print("=" * 60)
         print("🚀 Starting Rundeck Job Creation Process")
         print("=" * 60)
-
+        
+        # Get environment variables
         job_id = os.getenv("RD_JOB_ID", "jobid")
         execution_uuid = os.getenv("RD_JOB_EXECUTIONUUID", "execuuid")
         exec_id = os.getenv("RD_JOB_EXECID", "123")
         user = os.getenv("RD_JOB_USERNAME", "unknown")
-
+        
         print(f"📋 Job ID: {job_id}")
         print(f"📋 Execution UUID: {execution_uuid}")
         print(f"📋 Exec ID: {exec_id}")
         print(f"👤 User: {user}")
-
+        
+        # Setup paths
+        base_dir = Path(__file__).resolve().parent
         output_dir = Path(f"/tmp/{job_id}/{execution_uuid}")
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / f"approval_job_{exec_id}.yaml"
-
+        
         print(f"📁 Output directory: {output_dir}")
         print(f"📄 Output file: {output_file}")
-
-        # Step 1
+        
+        # Step 1: Generate job data
         print("\n" + "=" * 60)
         print("Step 1: Generating job data...")
         print("=" * 60)
         data = generate_job_data(job_id, execution_uuid)
         job_name = data["name"]
-
-        # Step 2
+        
+        # Step 2: Render template
         print("\n" + "=" * 60)
         print("Step 2: Rendering job template...")
         print("=" * 60)
-        render_job_template(data, output_file)
-
-        # Step 3
+        renderer = TemplateRenderer(template_dir=base_dir / "template")
+        renderer.render_to_file("vault-value.j2", data, output_file)
+        
+        # Step 3: Import to Rundeck
         print("\n" + "=" * 60)
         print("Step 3: Importing job to Rundeck...")
         print("=" * 60)
-        job_link = import_job_to_rundeck(output_file)
-
-        # Step 4
+        rundeck = RundeckClient()
+        response_data = rundeck.import_job(output_file)
+        job_link = rundeck.get_job_permalink(response_data)
+        
+        # Step 4: Send Slack notification
         print("\n" + "=" * 60)
         print("Step 4: Sending Slack notification...")
         print("=" * 60)
-        base_dir = Path(__file__).resolve().parent
-        notification_script = base_dir / "notification.py"
-
-        # if not notification_script.exists():
-        #     print(f"⚠️ Slack notification skipped: {notification_script} not found.")
-        # else:
-        #     subprocess.run(["python3", str(notification_script), job_name, job_link, user], check=True)
-
+        send_to_slack(job_name, job_link, user)
+        
         print("\n" + "=" * 60)
-        print("✅ ALL STEPS COMPLETED SUCCESSFULLY!")
+        print("ALL STEPS COMPLETED SUCCESSFULLY!")
         print("=" * 60)
-
+    
     except Exception as e:
         print("\n" + "=" * 60)
         print("❌ PROCESS FAILED!")

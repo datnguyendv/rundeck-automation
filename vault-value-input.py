@@ -1,14 +1,19 @@
+"""
+Script import secrets vào Vault
+"""
 import argparse
 import os
 import json
 import sys
 import requests
 from pathlib import Path
-from jinja2 import Environment, FileSystemLoader
 from typing import List, Dict, Optional
 
+from utils import TemplateRenderer
+
+
 def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments."""
+    """Parse command line arguments"""
     parser = argparse.ArgumentParser(description="Generate and import secrets into Vault")
     parser.add_argument(
         "-i", "--input",
@@ -34,14 +39,14 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def parse_input_keys(input_string: str) -> List[str]:
-    """Parse comma-separated input keys."""
+    """Parse comma-separated input keys"""
     keys = [k.strip() for k in input_string.split(",") if k.strip()]
     print(f"[INFO] Parsed {len(keys)} keys: {', '.join(keys)}")
     return keys
 
 
 def get_rundeck_variables() -> Dict[str, str]:
-    """Get configuration from Rundeck environment variables."""
+    """Get configuration from Rundeck environment variables"""
     config = {
         "env": os.environ.get("RD_OPTION_ENV", "dev"),
         "vault_name": os.environ.get("RD_OPTION_VAULTNAME", "default-service"),
@@ -54,22 +59,14 @@ def get_rundeck_variables() -> Dict[str, str]:
 
 
 def generate_vault_gke_yaml(vault_keys: List[str], config: Dict[str, str]) -> Optional[str]:
-    """Generate vault-gke YAML config from Jinja2 template."""
+    """Generate vault-gke YAML config from Jinja2 template"""
     try:
-        # Setup paths
-        BASE_DIR = Path(__file__).resolve().parent
-        TEMPLATE_DIR = BASE_DIR / "template"
+        base_dir = Path(__file__).resolve().parent
+        template_dir = base_dir / "template"
         
-        if not TEMPLATE_DIR.exists():
-            print(f"⚠️  [WARN] Template directory not found: {TEMPLATE_DIR}", file=sys.stderr)
+        if not template_dir.exists():
+            print(f"⚠️ [WARN] Template directory not found: {template_dir}", file=sys.stderr)
             return None
-        
-        # Setup Jinja2 environment
-        jinja_env = Environment(
-            loader=FileSystemLoader(str(TEMPLATE_DIR)),
-            trim_blocks=True,
-            lstrip_blocks=True,
-        )
         
         # Prepare template data
         template_data = {
@@ -87,17 +84,17 @@ def generate_vault_gke_yaml(vault_keys: List[str], config: Dict[str, str]) -> Op
         print(f"# Action: {config['action']}")
         print(f"# Keys: {', '.join(vault_keys)}")
         
-        # Render template
-        template = jinja_env.get_template("vault-gke.j2")
-        rendered_yaml = template.render(**template_data)
+        # Render template using TemplateRenderer
+        renderer = TemplateRenderer(template_dir=template_dir)
+        rendered_yaml = renderer.render("vault-gke.j2", template_data)
         
         print(f"# Generated YAML:\n{rendered_yaml}")
         
         # Save to file
         output_dir = Path(f"/tmp/{config['job_id']}")
         output_dir.mkdir(parents=True, exist_ok=True)
-        
         output_file = output_dir / f"vault-gke-{config['exec_id']}.yaml"
+        
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(rendered_yaml)
         
@@ -105,16 +102,16 @@ def generate_vault_gke_yaml(vault_keys: List[str], config: Dict[str, str]) -> Op
         print("# ---------------- YAML GENERATION END ------------------\n")
         
         return rendered_yaml
-        
+    
     except Exception as e:
-        print(f"⚠️  [WARN] Failed to generate YAML: {str(e)}", file=sys.stderr)
+        print(f"⚠️ [WARN] Failed to generate YAML: {str(e)}", file=sys.stderr)
         import traceback
         traceback.print_exc()
         return None
 
 
 def gather_secret_data(keys: List[str]) -> Dict[str, str]:
-    """Gather secret values from Rundeck environment variables."""
+    """Gather secret values from Rundeck environment variables"""
     data_dict = {}
     missing_keys = []
     
@@ -136,26 +133,24 @@ def gather_secret_data(keys: List[str]) -> Dict[str, str]:
 
 
 def prepare_vault_payload(data_dict: Dict[str, str]) -> str:
-    """Prepare Vault KV v2 payload."""
+    """Prepare Vault KV v2 payload"""
     vault_payload = {"data": data_dict}
     json_payload = json.dumps(vault_payload, indent=2)
     return json_payload
 
 
 def import_to_vault(vault_addr: str, vault_path: str, vault_token: str, json_payload: str) -> bool:
-    """Import secrets to Vault via API."""
+    """Import secrets to Vault via API"""
     print("# ---------------- VAULT IMPORT START ----------------")
     print(f"# Vault Addr: {vault_addr}")
     print(f"# Vault Path: {vault_path}")
     print(f"# Payload:\n{json_payload}")
     print("# ----------------------------------------------------")
     
-    # Validate token
     if not vault_token:
         print("[ERROR] Missing Vault token. Provide via --vault-token or RD_OPTION_VAULTTOKEN", file=sys.stderr)
         return False
     
-    # Prepare request
     url = f"{vault_addr}/v1/{vault_path}"
     headers = {
         "X-Vault-Token": vault_token,
@@ -172,7 +167,7 @@ def import_to_vault(vault_addr: str, vault_path: str, vault_token: str, json_pay
         else:
             print(f"[ERROR] Vault response body: {response.text}", file=sys.stderr)
             return False
-            
+    
     except requests.exceptions.Timeout:
         print(f"[ERROR] Request timeout: Vault did not respond in time", file=sys.stderr)
         return False
@@ -182,31 +177,26 @@ def import_to_vault(vault_addr: str, vault_path: str, vault_token: str, json_pay
 
 
 def main():
-    """Main execution flow."""
+    """Main execution flow"""
     try:
         print("=" * 80)
         print("🚀 Vault Secret Manager - Starting")
         print("=" * 80)
         
-        # Step 1: Parse arguments
         args = parse_arguments()
-        
-        # Step 2: Parse input keys
         keys = parse_input_keys(args.input)
-        
-        # Step 3: Get Rundeck configuration
         config = get_rundeck_variables()
         
-        # Step 4: Generate YAML (if template exists)
+        # Generate YAML (if template exists)
         generate_vault_gke_yaml(keys, config)
         
-        # Step 5: Gather secret data
+        # Gather secret data
         data_dict = gather_secret_data(keys)
         
-        # Step 6: Prepare Vault payload
+        # Prepare Vault payload
         json_payload = prepare_vault_payload(data_dict)
         
-        # Step 7: Import to Vault
+        # Import to Vault
         success = import_to_vault(
             vault_addr=args.vault_addr,
             vault_path=args.vault_path,
@@ -214,7 +204,6 @@ def main():
             json_payload=json_payload
         )
         
-        # Step 8: Exit with appropriate code
         if success:
             print("\n" + "=" * 80)
             print("✅ All operations completed successfully!")
@@ -225,7 +214,7 @@ def main():
             print("❌ Operation failed!")
             print("=" * 80)
             sys.exit(1)
-            
+    
     except Exception as e:
         print("\n" + "=" * 80)
         print("❌ Fatal error occurred!")
