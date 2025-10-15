@@ -21,7 +21,7 @@ class RundeckConfig:
             raise ValueError("RD_TOKEN environment variable is required")
         
         return cls(
-            url=os.getenv("RD_URL", "http://rundeck:4440"),
+            url=os.getenv("RD_URL", "http://localhost:4440"),
             token=token,
             project=os.getenv("RD_PROJECT", "vault-management")
         )
