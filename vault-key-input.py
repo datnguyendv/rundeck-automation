@@ -1,130 +1,215 @@
+#!/usr/bin/env python3
 """
-Script create Rundeck job for SWE input vault keys
+Rundeck script: Generate approval job for vault key input
 """
 import os
-import json
+import sys
 from pathlib import Path
 from typing import Dict
 
-from utils import TemplateRenderer, RundeckClient, send_to_slack
+from utils import (
+    setup_logger,
+    AppConfig,
+    TemplateRenderer,
+    RundeckClient,
+    SlackNotifier,
+    NotificationMessage,
+    TemplateRenderError,
+    RundeckAPIError,
+    NotificationError,
+    ConfigurationError
+)
 
-def generate_job_data(job_id: str, execution_id: str) -> Dict:
-    """Generate job data from environment variables"""
+logger = setup_logger(__name__)
+
+
+def get_rundeck_context() -> Dict[str, str]:
+    """Extract Rundeck job context from environment"""
+    context = {
+        "job_id": os.getenv("RD_JOB_ID", "unknown_job"),
+        "execution_uuid": os.getenv("RD_JOB_EXECUTIONUUID", "unknown_exec"),
+        "exec_id": os.getenv("RD_JOB_EXECID", "0"),
+        "user": os.getenv("RD_JOB_USERNAME", "system"),
+    }
+    logger.info(f"Rundeck context: job_id={context['job_id']}, user={context['user']}")
+    return context
+
+
+def generate_job_data(context: Dict[str, str]) -> Dict:
+    """
+    Generate job template data from environment variables
+    
+    Args:
+        context: Rundeck execution context
+    
+    Returns:
+        Job data dictionary for template rendering
+    
+    Raises:
+        ConfigurationError: If required environment variables missing
+    """
     try:
-        vault_name = os.getenv("RD_OPTION_VAULTNAME", "test")
+        # Read configuration from environment
+        vault_name = os.getenv("RD_OPTION_VAULTNAME")
         namespace = os.getenv("RD_OPTION_NAMESPACE", "default")
         action = os.getenv("RD_OPTION_ACTION", "create")
-        job_name = f"{action} vault value for {vault_name}"
-        vault_keys_raw = os.getenv("RD_OPTION_VAULTKEY", "NPM_TOKEN,GCP")
+        vault_keys_raw = os.getenv("RD_OPTION_VAULTKEY", "")
+        
+        if not vault_name:
+            raise ConfigurationError("RD_OPTION_VAULTNAME is required")
+        
+        if not vault_keys_raw:
+            raise ConfigurationError("RD_OPTION_VAULTKEY is required")
+        
+        # Parse vault keys
         vault_keys = [k.strip() for k in vault_keys_raw.split(",") if k.strip()]
         
+        if not vault_keys:
+            raise ConfigurationError("No valid vault keys provided")
+        
+        logger.info(f"Vault name: {vault_name}")
+        logger.info(f"Namespace: {namespace}")
+        logger.info(f"Action: {action}")
+        logger.info(f"Vault keys: {', '.join(vault_keys)}")
+        
+        # Generate job name
+        job_name = f"{action} vault value for {vault_name}"
+        
+        # Build job data structure
         result = {
             "options": [],
             "group": "approval",
             "name": job_name,
             "keys": vault_keys_raw,
-            "job_id": job_id,
-            "execution_uuid": execution_id,
+            "job_id": context["job_id"],
+            "execution_uuid": context["execution_uuid"],
         }
         
-        # Add options
-        result["options"].append({"name": "VaultName", "description": "", "value": vault_name})
-        result["options"].append({"name": "namespace", "description": "", "value": namespace})
-        result["options"].append({"name": "Action", "description": "", "value": action})
+        # Add metadata options
+        result["options"].extend([
+            {"name": "VaultName", "description": "Vault secret name", "value": vault_name},
+            {"name": "namespace", "description": "K8s namespace", "value": namespace},
+            {"name": "Action", "description": "Action type", "value": action},
+        ])
         
-        # VaultToken
+        # Add secure VaultToken option
         result["options"].append({
             "name": "VaultToken",
-            "description": "",
+            "description": "Vault authentication token",
             "required": True,
             "hidden": True,
             "secure": True,
-            "storagePath": "keys/project/vaul-v1/Token",
+            "storagePath": "keys/project/vault-v1/Token",
             "valueExposed": True
         })
         
-        # Add each VaultKey
+        # Add input fields for each vault key
         for key in vault_keys:
             result["options"].append({
                 "name": key,
-                "description": f"Enter value for key {key}",
+                "description": f"Value for secret key: {key}",
                 "required": True
             })
         
-        print("🧩 Generated input data:")
-        print(json.dumps(result, indent=4))
+        logger.debug(f"Generated job data: {result}")
         return result
     
     except Exception as e:
-        print(f"❌ Error generating job data: {str(e)}")
+        logger.error(f"Failed to generate job data: {e}")
         raise
 
 
-def main() -> None:
+def main() -> int:
+    """
+    Main execution flow
+    
+    Returns:
+        Exit code (0 = success, 1 = failure)
+    """
     try:
-        print("=" * 60)
-        print("🚀 Starting Rundeck Job Creation Process")
-        print("=" * 60)
+        logger.info("=" * 80)
+        logger.info("🚀 Vault Key Input Job Generator - Starting")
+        logger.info("=" * 80)
         
-        # Get environment variables
-        job_id = os.getenv("RD_JOB_ID", "jobid")
-        execution_uuid = os.getenv("RD_JOB_EXECUTIONUUID", "execuuid")
-        exec_id = os.getenv("RD_JOB_EXECID", "123")
-        user = os.getenv("RD_JOB_USERNAME", "unknown")
-        
-        print(f"📋 Job ID: {job_id}")
-        print(f"📋 Execution UUID: {execution_uuid}")
-        print(f"📋 Exec ID: {exec_id}")
-        print(f"👤 User: {user}")
+        # Get execution context
+        context = get_rundeck_context()
         
         # Setup paths
         base_dir = Path(__file__).resolve().parent
-        output_dir = Path(f"/tmp/{job_id}/{execution_uuid}")
+        output_dir = Path(f"/tmp/{context['job_id']}/{context['execution_uuid']}")
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / f"approval_job_{exec_id}.yaml"
+        output_file = output_dir / f"approval_job_{context['exec_id']}.yaml"
         
-        print(f"📁 Output directory: {output_dir}")
-        print(f"📄 Output file: {output_file}")
+        logger.info(f"Output directory: {output_dir}")
+        logger.info(f"Output file: {output_file}")
         
         # Step 1: Generate job data
-        print("\n" + "=" * 60)
-        print("Step 1: Generating job data...")
-        print("=" * 60)
-        data = generate_job_data(job_id, execution_uuid)
-        job_name = data["name"]
+        logger.info("\n" + "=" * 80)
+        logger.info("STEP 1: Generating job data")
+        logger.info("=" * 80)
+        
+        job_data = generate_job_data(context)
+        job_name = job_data["name"]
         
         # Step 2: Render template
-        print("\n" + "=" * 60)
-        print("Step 2: Rendering job template...")
-        print("=" * 60)
-        renderer = TemplateRenderer(template_dir=base_dir / "template")
-        renderer.render_to_file("vault-value.j2", data, output_file)
+        logger.info("\n" + "=" * 80)
+        logger.info("STEP 2: Rendering job template")
+        logger.info("=" * 80)
+        
+        template_dir = base_dir / "template"
+        renderer = TemplateRenderer(template_dir=template_dir)
+        renderer.render_to_file("vault-value.j2", job_data, output_file)
         
         # Step 3: Import to Rundeck
-        print("\n" + "=" * 60)
-        print("Step 3: Importing job to Rundeck...")
-        print("=" * 60)
-        rundeck = RundeckClient()
+        logger.info("\n" + "=" * 80)
+        logger.info("STEP 3: Importing job to Rundeck")
+        logger.info("=" * 80)
+        
+        config = AppConfig.from_env()
+        rundeck = RundeckClient(
+            url=config.rundeck.url,
+            token=config.rundeck.token,
+            project=config.rundeck.project
+        )
+        
         response_data = rundeck.import_job(output_file)
         job_link = rundeck.get_job_permalink(response_data)
         
-        # Step 4: Send Slack notification
-        print("\n" + "=" * 60)
-        print("Step 4: Sending Slack notification...")
-        print("=" * 60)
-        send_to_slack(job_name, job_link, user)
+        # Step 4: Send notification
+        logger.info("\n" + "=" * 80)
+        logger.info("STEP 4: Sending Slack notification")
+        logger.info("=" * 80)
         
-        print("\n" + "=" * 60)
-        print("ALL STEPS COMPLETED SUCCESSFULLY!")
-        print("=" * 60)
+        if config.slack.enabled:
+            notifier = SlackNotifier(webhook_url=config.slack.webhook_url)
+            message = NotificationMessage(
+                title=job_name,
+                link=job_link,
+                user=context["user"]
+            )
+            notifier.send(message)
+        else:
+            logger.warning("Slack notifications disabled (no webhook URL)")
+        
+        # Success
+        logger.info("\n" + "=" * 80)
+        logger.info("✅ ALL STEPS COMPLETED SUCCESSFULLY")
+        logger.info("=" * 80)
+        
+        return 0
+    
+    except (TemplateRenderError, RundeckAPIError, ConfigurationError) as e:
+        logger.error(f"❌ Operation failed: {e}")
+        return 1
+    
+    except NotificationError as e:
+        logger.warning(f"⚠️ Notification failed (non-critical): {e}")
+        return 0  # Don't fail the whole job for notification issues
     
     except Exception as e:
-        print("\n" + "=" * 60)
-        print("❌ PROCESS FAILED!")
-        print("=" * 60)
-        print(f"Error: {str(e)}")
-        raise
+        logger.exception(f"❌ Unexpected error: {e}")
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

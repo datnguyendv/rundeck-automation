@@ -1,48 +1,114 @@
 """
-Module gửi notification tới Slack
+Notification module with retry logic and better error handling
 """
-import os
+import logging
 import requests
 from typing import Optional
+from dataclasses import dataclass
+
+from .exceptions import NotificationError
+from .logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
-class SlackNotifier:
-    def __init__(self, webhook_url: Optional[str] = None):
-        self.webhook_url = webhook_url or os.getenv("SLACK_WEBHOOK_URL", "")
+@dataclass
+class NotificationMessage:
+    """Structured notification message"""
+    title: str
+    link: str
+    user: str
+    color: str = "#36a64f"
     
-    def send(self, title: str, link: str, user: str) -> bool:
-        """
-        Gửi notification tới Slack
-        Returns: True nếu thành công, False nếu thất bại
-        """
-        if not self.webhook_url:
-            print("⚠️ [WARN] Slack webhook URL not configured, skipping notification")
-            return False
-        
-        payload = {
+    def to_slack_payload(self) -> dict:
+        """Convert to Slack attachment format"""
+        return {
             "attachments": [
                 {
-                    "color": "#36a64f",
-                    "title": f":rocket: {title}",
-                    "text": f"🔗 *Link:* <{link}> \n👤 *Created By:* {user}"
+                    "color": self.color,
+                    "title": f":rocket: {self.title}",
+                    "text": f"🔗 *Link:* <{self.link}>\n👤 *Created By:* {self.user}",
+                    "footer": "Rundeck Automation",
+                    "ts": None  # Slack will add timestamp
                 }
             ]
         }
+
+
+class SlackNotifier:
+    """Slack notification client with retry logic"""
+    
+    def __init__(self, webhook_url: Optional[str] = None, timeout: int = 10, max_retries: int = 3):
+        self.webhook_url = webhook_url
+        self.timeout = timeout
+        self.max_retries = max_retries
+    
+    def send(self, message: NotificationMessage) -> bool:
+        """
+        Send notification to Slack with retry logic
         
-        try:
-            response = requests.post(self.webhook_url, json=payload, timeout=10)
-            if response.status_code != 200:
-                print(f"❌ Slack returned {response.status_code}: {response.text}")
-                return False
-            print("✅ Sent Slack notification successfully!")
-            return True
-        except requests.exceptions.RequestException as e:
-            print(f"❌ Failed to send Slack notification: {e}")
+        Args:
+            message: NotificationMessage instance
+        
+        Returns:
+            True if successful, False otherwise
+        
+        Raises:
+            NotificationError: If all retries failed
+        """
+        if not self.webhook_url:
+            logger.warning("Slack webhook URL not configured, skipping notification")
             return False
+        
+        payload = message.to_slack_payload()
+        
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                logger.info(f"Sending Slack notification (attempt {attempt}/{self.max_retries})")
+                response = requests.post(
+                    self.webhook_url,
+                    json=payload,
+                    timeout=self.timeout
+                )
+                
+                if response.status_code == 200:
+                    logger.info("✅ Slack notification sent successfully")
+                    return True
+                else:
+                    logger.error(f"Slack API error: {response.status_code} - {response.text}")
+                    
+            except requests.exceptions.Timeout:
+                logger.warning(f"Slack request timeout on attempt {attempt}")
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Slack request failed on attempt {attempt}: {e}")
+            
+            if attempt < self.max_retries:
+                logger.info(f"Retrying in 2 seconds...")
+                import time
+                time.sleep(2)
+        
+        error_msg = f"Failed to send Slack notification after {self.max_retries} attempts"
+        logger.error(error_msg)
+        raise NotificationError(error_msg)
+    
+    def send_simple(self, title: str, link: str, user: str) -> bool:
+        """
+        Convenience method for simple notifications
+        
+        Args:
+            title: Notification title
+            link: URL to include
+            user: Username who triggered action
+        
+        Returns:
+            True if successful
+        """
+        message = NotificationMessage(title=title, link=link, user=user)
+        return self.send(message)
 
 
-# Backward compatibility - function interface
-def send_to_slack(title: str, link: str, user: str) -> bool:
-    """Hàm wrapper để dùng trực tiếp"""
-    notifier = SlackNotifier()
-    return notifier.send(title, link, user)
+# Backward compatibility function
+def send_to_slack(title: str, link: str, user: str, webhook_url: Optional[str] = None) -> bool:
+    """Legacy function interface"""
+    notifier = SlackNotifier(webhook_url=webhook_url)
+    return notifier.send_simple(title, link, user)

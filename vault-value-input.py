@@ -1,29 +1,50 @@
+#!/usr/bin/env python3
 """
-Script import secrets vào Vault
+Rundeck script: Import secrets into HashiCorp Vault
 """
 import argparse
 import os
-import json
 import sys
-import requests
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict
 
-from utils import TemplateRenderer
+from utils import (
+    setup_logger,
+    AppConfig,
+    TemplateRenderer,
+    VaultClient,
+    VaultAPIError,
+    TemplateRenderError,
+    ValidationError
+)
+
+logger = setup_logger(__name__)
 
 
 def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments"""
-    parser = argparse.ArgumentParser(description="Generate and import secrets into Vault")
+    """Parse and validate command line arguments"""
+    parser = argparse.ArgumentParser(
+        description="Import secrets into HashiCorp Vault",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Import from Rundeck options
+  python vault_value_input.py -i GITHUB_TOKEN,NPM_TOKEN
+
+  # With custom Vault settings
+  python vault_value_input.py -i API_KEY --vault-addr https://vault.example.com --vault-path secret/data/prod
+        """
+    )
+    
     parser.add_argument(
         "-i", "--input",
         required=True,
-        help="Comma-separated list of secret keys to include (e.g. GITHUB_TOKEN,NPM_TOKEN,GCP_CREDS)"
+        help="Comma-separated list of secret keys (e.g., GITHUB_TOKEN,NPM_TOKEN)"
     )
     parser.add_argument(
         "--vault-addr",
         default=os.environ.get("VAULT_ADDR", "https://vault.example.com"),
-        help="Vault address (default: from VAULT_ADDR env)"
+        help="Vault server address (default: from VAULT_ADDR env)"
     )
     parser.add_argument(
         "--vault-path",
@@ -33,20 +54,47 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--vault-token",
         default=os.environ.get("RD_OPTION_VAULTTOKEN"),
-        help="Vault token (default: from Rundeck option RD_OPTION_VAULTTOKEN)"
+        help="Vault authentication token (default: from RD_OPTION_VAULTTOKEN env)"
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--skip-yaml",
+        action="store_true",
+        help="Skip YAML generation step"
+    )
+    
+    args = parser.parse_args()
+    
+    # Validate token
+    if not args.vault_token:
+        parser.error("Vault token required: use --vault-token or set RD_OPTION_VAULTTOKEN")
+    
+    return args
 
 
 def parse_input_keys(input_string: str) -> List[str]:
-    """Parse comma-separated input keys"""
+    """
+    Parse and validate comma-separated keys
+    
+    Args:
+        input_string: Comma-separated key names
+    
+    Returns:
+        List of validated key names
+    
+    Raises:
+        ValidationError: If no valid keys found
+    """
     keys = [k.strip() for k in input_string.split(",") if k.strip()]
-    print(f"[INFO] Parsed {len(keys)} keys: {', '.join(keys)}")
+    
+    if not keys:
+        raise ValidationError("No valid secret keys provided")
+    
+    logger.info(f"Parsed {len(keys)} secret keys: {', '.join(keys)}")
     return keys
 
 
-def get_rundeck_variables() -> Dict[str, str]:
-    """Get configuration from Rundeck environment variables"""
+def get_rundeck_config() -> Dict[str, str]:
+    """Extract configuration from Rundeck environment variables"""
     config = {
         "env": os.environ.get("RD_OPTION_ENV", "dev"),
         "vault_name": os.environ.get("RD_OPTION_VAULTNAME", "default-service"),
@@ -55,18 +103,29 @@ def get_rundeck_variables() -> Dict[str, str]:
         "job_id": os.environ.get("RD_JOB_ID", "default"),
         "exec_id": os.environ.get("RD_JOB_EXECID", "0")
     }
+    
+    logger.info(f"Rundeck config: env={config['env']}, vault={config['vault_name']}")
     return config
 
 
-def generate_vault_gke_yaml(vault_keys: List[str], config: Dict[str, str]) -> Optional[str]:
-    """Generate vault-gke YAML config from Jinja2 template"""
+def generate_vault_gke_yaml(keys: List[str], config: Dict[str, str]) -> bool:
+    """
+    Generate vault-gke YAML configuration
+    
+    Args:
+        keys: List of secret keys
+        config: Rundeck configuration
+    
+    Returns:
+        True if successful, False if skipped/failed
+    """
     try:
         base_dir = Path(__file__).resolve().parent
         template_dir = base_dir / "template"
         
-        if not template_dir.exists():
-            print(f"⚠️ [WARN] Template directory not found: {template_dir}", file=sys.stderr)
-            return None
+        if not (template_dir / "vault-gke.j2").exists():
+            logger.warning("Template 'vault-gke.j2' not found, skipping YAML generation")
+            return False
         
         # Prepare template data
         template_data = {
@@ -74,156 +133,121 @@ def generate_vault_gke_yaml(vault_keys: List[str], config: Dict[str, str]) -> Op
             "vault_name": config["vault_name"],
             "namespace": config["namespace"],
             "action": config["action"],
-            "vault_keys": vault_keys
+            "vault_keys": keys
         }
         
-        print("\n# ---------------- YAML GENERATION START ----------------")
-        print(f"# Environment: {config['env']}")
-        print(f"# Vault Name: {config['vault_name']}")
-        print(f"# Namespace: {config['namespace']}")
-        print(f"# Action: {config['action']}")
-        print(f"# Keys: {', '.join(vault_keys)}")
-        
-        # Render template using TemplateRenderer
+        # Render template
         renderer = TemplateRenderer(template_dir=template_dir)
-        rendered_yaml = renderer.render("vault-gke.j2", template_data)
-        
-        print(f"# Generated YAML:\n{rendered_yaml}")
         
         # Save to file
         output_dir = Path(f"/tmp/{config['job_id']}")
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / f"vault-gke-{config['exec_id']}.yaml"
         
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(rendered_yaml)
+        renderer.render_to_file("vault-gke.j2", template_data, output_file)
+        logger.info(f"✅ YAML generated: {output_file}")
         
-        print(f"# ✅ YAML saved to: {output_file}")
-        print("# ---------------- YAML GENERATION END ------------------\n")
-        
-        return rendered_yaml
+        return True
     
-    except Exception as e:
-        print(f"⚠️ [WARN] Failed to generate YAML: {str(e)}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
-        return None
+    except TemplateRenderError as e:
+        logger.warning(f"YAML generation failed: {e}")
+        return False
 
 
 def gather_secret_data(keys: List[str]) -> Dict[str, str]:
-    """Gather secret values from Rundeck environment variables"""
+    """
+    Gather secret values from Rundeck options
+    
+    Args:
+        keys: List of secret key names
+    
+    Returns:
+        Dictionary of key-value pairs
+    """
     data_dict = {}
     missing_keys = []
     
     for key in keys:
-        env_key = f"RD_OPTION_{key}"
-        value = os.environ.get(env_key)
+        env_var = f"RD_OPTION_{key}"
+        value = os.environ.get(env_var)
         
         if value is None:
-            print(f"[WARN] Missing environment variable: {env_key}", file=sys.stderr)
+            logger.warning(f"Missing environment variable: {env_var}")
             missing_keys.append(key)
             value = ""
+        else:
+            # Don't log actual secret values
+            logger.debug(f"Found value for {key}")
         
         data_dict[key] = value
     
     if missing_keys:
-        print(f"[WARN] Total missing keys: {len(missing_keys)}", file=sys.stderr)
+        logger.warning(f"Total missing keys: {len(missing_keys)} - {', '.join(missing_keys)}")
     
+    logger.info(f"Gathered {len(data_dict)} secret values")
     return data_dict
 
 
-def prepare_vault_payload(data_dict: Dict[str, str]) -> str:
-    """Prepare Vault KV v2 payload"""
-    vault_payload = {"data": data_dict}
-    json_payload = json.dumps(vault_payload, indent=2)
-    return json_payload
-
-
-def import_to_vault(vault_addr: str, vault_path: str, vault_token: str, json_payload: str) -> bool:
-    """Import secrets to Vault via API"""
-    print("# ---------------- VAULT IMPORT START ----------------")
-    print(f"# Vault Addr: {vault_addr}")
-    print(f"# Vault Path: {vault_path}")
-    print(f"# Payload:\n{json_payload}")
-    print("# ----------------------------------------------------")
+def main() -> int:
+    """
+    Main execution flow
     
-    if not vault_token:
-        print("[ERROR] Missing Vault token. Provide via --vault-token or RD_OPTION_VAULTTOKEN", file=sys.stderr)
-        return False
-    
-    url = f"{vault_addr}/v1/{vault_path}"
-    headers = {
-        "X-Vault-Token": vault_token,
-        "Content-Type": "application/json"
-    }
-    
+    Returns:
+        Exit code (0 = success, 1 = failure)
+    """
     try:
-        response = requests.post(url, headers=headers, data=json_payload, timeout=30)
-        print(f"\n[INFO] Vault API response: {response.status_code}")
+        logger.info("=" * 80)
+        logger.info("🚀 Vault Secret Importer - Starting")
+        logger.info("=" * 80)
         
-        if response.status_code in [200, 204]:
-            print("[SUCCESS] Secrets successfully imported into Vault.")
-            return True
-        else:
-            print(f"[ERROR] Vault response body: {response.text}", file=sys.stderr)
-            return False
-    
-    except requests.exceptions.Timeout:
-        print(f"[ERROR] Request timeout: Vault did not respond in time", file=sys.stderr)
-        return False
-    except requests.exceptions.RequestException as e:
-        print(f"[ERROR] Failed to connect to Vault: {e}", file=sys.stderr)
-        return False
-
-
-def main():
-    """Main execution flow"""
-    try:
-        print("=" * 80)
-        print("🚀 Vault Secret Manager - Starting")
-        print("=" * 80)
-        
+        # Parse arguments
         args = parse_arguments()
         keys = parse_input_keys(args.input)
-        config = get_rundeck_variables()
+        config = get_rundeck_config()
         
-        # Generate YAML (if template exists)
-        generate_vault_gke_yaml(keys, config)
+        # Step 1: Generate YAML (optional)
+        if not args.skip_yaml:
+            logger.info("\n" + "=" * 80)
+            logger.info("STEP 1: Generating vault-gke YAML")
+            logger.info("=" * 80)
+            generate_vault_gke_yaml(keys, config)
+        else:
+            logger.info("Skipping YAML generation (--skip-yaml)")
         
-        # Gather secret data
-        data_dict = gather_secret_data(keys)
+        # Step 2: Gather secrets
+        logger.info("\n" + "=" * 80)
+        logger.info("STEP 2: Gathering secret values")
+        logger.info("=" * 80)
         
-        # Prepare Vault payload
-        json_payload = prepare_vault_payload(data_dict)
+        secret_data = gather_secret_data(keys)
         
-        # Import to Vault
-        success = import_to_vault(
-            vault_addr=args.vault_addr,
-            vault_path=args.vault_path,
-            vault_token=args.vault_token,
-            json_payload=json_payload
+        # Step 3: Write to Vault
+        logger.info("\n" + "=" * 80)
+        logger.info("STEP 3: Writing secrets to Vault")
+        logger.info("=" * 80)
+        
+        vault_client = VaultClient(
+            addr=args.vault_addr,
+            token=args.vault_token
         )
         
-        if success:
-            print("\n" + "=" * 80)
-            print("✅ All operations completed successfully!")
-            print("=" * 80)
-            sys.exit(0)
-        else:
-            print("\n" + "=" * 80)
-            print("❌ Operation failed!")
-            print("=" * 80)
-            sys.exit(1)
+        vault_client.write_secret(args.vault_path, secret_data)
+        
+        # Success
+        logger.info("\n" + "=" * 80)
+        logger.info("✅ ALL STEPS COMPLETED SUCCESSFULLY")
+        logger.info("=" * 80)
+        
+        return 0
+    
+    except (ValidationError, VaultAPIError, TemplateRenderError) as e:
+        logger.error(f"❌ Operation failed: {e}")
+        return 1
     
     except Exception as e:
-        print("\n" + "=" * 80)
-        print("❌ Fatal error occurred!")
-        print("=" * 80)
-        print(f"[ERROR] {str(e)}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+        logger.exception(f"❌ Unexpected error: {e}")
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
