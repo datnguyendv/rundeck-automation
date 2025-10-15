@@ -44,7 +44,7 @@ __all__ = [
     'TemplateRenderer',
     'RundeckClient',
     'VaultClient',
-    'FileOperation',
+    'FileOperations',
     'FileOperationError'
 ]
 
