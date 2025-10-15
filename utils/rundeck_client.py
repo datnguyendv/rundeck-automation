@@ -160,3 +160,89 @@ class RundeckClient:
         except (KeyError, IndexError, TypeError) as e:
             logger.warning(f"Error parsing response for permalink: {e}")
             return "N/A"
+    def delete_job(self, job_id: str) -> bool:
+        """
+        Delete a Rundeck job by ID
+        
+        Args:
+            job_id: Job UUID or ID
+        
+        Returns:
+            True if deleted successfully
+        
+        Raises:
+            RundeckAPIError: If deletion fails
+        """
+        url = f"{self.url}/api/54/job/{job_id}"
+        
+        logger.info(f"🗑️  Deleting Rundeck job: {job_id}")
+        
+        try:
+            response = self.session.delete(
+                url,
+                headers=self._get_headers("application/json"),
+                timeout=self.timeout
+            )
+            
+            if response.status_code == 204:
+                logger.info(f"✅ Job {job_id} deleted successfully")
+                return True
+            elif response.status_code == 404:
+                logger.warning(f"⚠️ Job {job_id} not found (may already be deleted)")
+                return False
+            else:
+                response.raise_for_status()
+                return False
+        
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"Failed to delete job {job_id}: {e.response.status_code}"
+            try:
+                error_detail = e.response.json()
+                error_msg += f" - {json.dumps(error_detail)}"
+            except:
+                error_msg += f" - {e.response.text}"
+            logger.error(error_msg)
+            raise RundeckAPIError(error_msg)
+        
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Request failed while deleting job: {str(e)}"
+            logger.error(error_msg)
+            raise RundeckAPIError(error_msg)
+
+
+    def delete_job_by_href(self, href: str) -> bool:
+        """
+        Delete a Rundeck job by its href/permalink
+        
+        Args:
+            href: Full job URL or permalink (e.g., http://rundeck:4440/project/myproject/job/show/abc-123)
+        
+        Returns:
+            True if deleted successfully
+        
+        Raises:
+            RundeckAPIError: If deletion fails
+        """
+        # Extract job ID from href
+        # Format: http://rundeck:4440/project/PROJECT/job/show/JOB_ID
+        import re
+        
+        patterns = [
+            r'/job/show/([a-f0-9-]+)',  # Standard show URL
+            r'/job/([a-f0-9-]+)',        # Direct job ID
+            r'id=([a-f0-9-]+)',          # Query parameter
+        ]
+        
+        job_id = None
+        for pattern in patterns:
+            match = re.search(pattern, href)
+            if match:
+                job_id = match.group(1)
+                break
+        
+        if not job_id:
+            # If no pattern matches, assume the href IS the job ID
+            job_id = href.split('/')[-1]
+        
+        logger.info(f"Extracted job ID: {job_id} from href: {href}")
+        return self.delete_job(job_id)

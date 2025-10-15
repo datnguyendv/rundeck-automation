@@ -16,6 +16,7 @@ from .notification import SlackNotifier, NotificationMessage, send_to_slack
 from .template_render import TemplateRenderer
 from .rundeck_client import RundeckClient
 from .vault_client import VaultClient
+from .file_operation import FileOperation, FileOperationError
 
 __all__ = [
     # Config
@@ -43,5 +44,7 @@ __all__ = [
     'TemplateRenderer',
     'RundeckClient',
     'VaultClient',
+    'FileOperation',
+    'FileOperationError'
 ]
 
