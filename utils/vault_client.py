@@ -55,7 +55,7 @@ class VaultClient:
             raise VaultAPIError("Vault token is required")
         
         # KV v2 format
-        payload = {"data": data}
+        # payload = {"data": data}
         url = f"{self.addr}/v1/{path}"
         
         logger.info(f"📝 Writing secrets to Vault path: {path}")
@@ -65,7 +65,7 @@ class VaultClient:
             response = requests.post(
                 url,
                 headers=self._get_headers(),
-                json=payload,
+                json=data,
                 timeout=self.timeout
             )
             
