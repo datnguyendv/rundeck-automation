@@ -23,16 +23,16 @@ def parse_arguments() -> argparse.Namespace:
         epilog="""
 Examples:
   # Delete job by href
-  python clean_job.py --job-href "http://rundeck:4440/project/test/job/show/abc-123"
+  python clean-job.py --job-href "http://rundeck:4440/project/test/job/show/abc-123"
   
   # Delete job by ID
-  python clean_job.py --job-id "abc-123-def-456"
+  python clean-job.py --job-id "abc-123-def-456"
   
   # Delete folder
-  python clean_job.py --path "/tmp/job-folder"
+  python clean-job.py --path "/tmp/job-folder"
   
   # Delete both (typical Rundeck usage)
-  python clean_job.py --job-href "@data.href@" --path "/tmp/@job.id@/@job.execid@"
+  python clean-job.py --job-href "@data.href@" --path "/tmp/@job.id@/@job.execid@"
         """
     )
     
