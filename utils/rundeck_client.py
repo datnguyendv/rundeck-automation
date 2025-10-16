@@ -1,12 +1,10 @@
-"""
-Rundeck API client with retry logic and better error handling
-"""
+import re
 import logging
 import json
 import time
+import requests
 from pathlib import Path
 from typing import Dict, Optional
-import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -15,10 +13,7 @@ from .logger import setup_logger
 
 logger = setup_logger(__name__)
 
-
 class RundeckClient:
-    """Rundeck API client with automatic retry"""
-    
     def __init__(
         self,
         url: str,
@@ -27,16 +22,6 @@ class RundeckClient:
         timeout: int = 30,
         max_retries: int = 3
     ):
-        """
-        Initialize Rundeck client
-        
-        Args:
-            url: Rundeck base URL
-            token: API authentication token
-            project: Project name
-            timeout: Request timeout in seconds
-            max_retries: Maximum number of retry attempts
-        """
         self.url = url.rstrip('/')
         self.token = token
         self.project = project
@@ -57,7 +42,6 @@ class RundeckClient:
         logger.info(f"Initialized RundeckClient for {self.url}")
     
     def _get_headers(self, content_type: str = "application/yaml") -> Dict[str, str]:
-        """Get request headers"""
         return {
             "X-Rundeck-Auth-Token": self.token,
             "Content-Type": content_type,
@@ -65,19 +49,6 @@ class RundeckClient:
         }
     
     def import_job(self, yaml_file: Path, duplicate_option: str = "update") -> Dict:
-        """
-        Import job from YAML file
-        
-        Args:
-            yaml_file: Path to YAML job definition
-            duplicate_option: How to handle duplicates (update/skip/create)
-        
-        Returns:
-            Response data dictionary
-        
-        Raises:
-            RundeckAPIError: If import fails
-        """
         if not yaml_file.exists():
             raise RundeckAPIError(f"YAML file not found: {yaml_file}")
         
@@ -134,15 +105,6 @@ class RundeckClient:
             raise RundeckAPIError(error_msg)
     
     def get_job_permalink(self, response_data: Dict) -> str:
-        """
-        Extract job permalink from import response
-        
-        Args:
-            response_data: Response from import_job
-        
-        Returns:
-            Job permalink URL or 'N/A'
-        """
         try:
             if "succeeded" in response_data and response_data["succeeded"]:
                 job_info = response_data["succeeded"][0]
@@ -212,22 +174,6 @@ class RundeckClient:
 
 
     def delete_job_by_href(self, href: str) -> bool:
-        """
-        Delete a Rundeck job by its href/permalink
-        
-        Args:
-            href: Full job URL or permalink (e.g., http://rundeck:4440/project/myproject/job/show/abc-123)
-        
-        Returns:
-            True if deleted successfully
-        
-        Raises:
-            RundeckAPIError: If deletion fails
-        """
-        # Extract job ID from href
-        # Format: http://rundeck:4440/project/PROJECT/job/show/JOB_ID
-        import re
-        
         patterns = [
             r'/job/show/([a-f0-9-]+)',  # Standard show URL
             r'/job/([a-f0-9-]+)',        # Direct job ID

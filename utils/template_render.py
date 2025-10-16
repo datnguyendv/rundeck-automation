@@ -1,6 +1,3 @@
-"""
-Template rendering module with validation and better error handling
-"""
 import re
 import logging
 from pathlib import Path
@@ -14,18 +11,7 @@ logger = setup_logger(__name__)
 
 
 class TemplateRenderer:
-    """Jinja2 template renderer with validation"""
-    
     def __init__(self, template_dir: Optional[Path] = None):
-        """
-        Initialize template renderer
-        
-        Args:
-            template_dir: Path to template directory
-        
-        Raises:
-            TemplateRenderError: If template directory doesn't exist
-        """
         if template_dir is None:
             self.template_dir = Path.cwd() / "template"
         else:
@@ -44,15 +30,6 @@ class TemplateRenderer:
         )
     
     def validate_template_exists(self, template_name: str) -> None:
-        """
-        Validate that template exists
-        
-        Args:
-            template_name: Template filename
-        
-        Raises:
-            TemplateRenderError: If template not found
-        """
         template_path = self.template_dir / template_name
         if not template_path.exists():
             available_templates = [f.name for f in self.template_dir.glob("*.j2")]
@@ -62,19 +39,6 @@ class TemplateRenderer:
             )
     
     def render(self, template_name: str, data: Dict[str, Any]) -> str:
-        """
-        Render template with data
-        
-        Args:
-            template_name: Template filename
-            data: Dictionary of template variables
-        
-        Returns:
-            Rendered string
-        
-        Raises:
-            TemplateRenderError: If rendering fails
-        """
         try:
             logger.info(f"Rendering template: {template_name}")
             logger.debug(f"Template data keys: {list(data.keys())}")
@@ -101,21 +65,6 @@ class TemplateRenderer:
         output_path: Path,
         overwrite: bool = True
     ) -> Path:
-        """
-        Render template and write to file
-        
-        Args:
-            template_name: Template filename
-            data: Dictionary of template variables
-            output_path: Path to output file
-            overwrite: Whether to overwrite existing file
-        
-        Returns:
-            Path to created file
-        
-        Raises:
-            TemplateRenderError: If rendering or writing fails
-        """
         if output_path.exists() and not overwrite:
             raise TemplateRenderError(f"Output file already exists: {output_path}")
         
@@ -137,16 +86,6 @@ class TemplateRenderer:
     
     @staticmethod
     def generate_safe_filename(name: str, extension: str = "yaml") -> str:
-        """
-        Generate filesystem-safe filename
-        
-        Args:
-            name: Input name
-            extension: File extension (without dot)
-        
-        Returns:
-            Safe filename
-        """
         # Remove/replace unsafe characters
         safe_name = re.sub(r'[^\w\s-]', '', name.strip().lower())
         safe_name = re.sub(r'[-\s]+', '-', safe_name)
