@@ -99,7 +99,7 @@ def generate_job_data(context: Dict[str, str]) -> Dict:
             "required": True,
             "hidden": True,
             "secure": True,
-            "storagePath": "keys/project/vault-v1/Token",
+            "storagePath": "keys/project/vault-management/Token",
             "valueExposed": True
         })
         

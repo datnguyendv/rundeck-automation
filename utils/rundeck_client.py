@@ -148,6 +148,7 @@ class RundeckClient:
                 job_info = response_data["succeeded"][0]
                 permalink = job_info.get("permalink") or job_info.get("href", "N/A")
                 logger.info(f"🔗 Job permalink: {permalink}")
+                print(f"href: ${permalink}")
                 return permalink
             elif "failed" in response_data and response_data["failed"]:
                 failed_info = response_data["failed"][0]
