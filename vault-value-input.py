@@ -40,37 +40,15 @@ Examples:
 
   # Override Vault settings
   python vault_value_input.py -i API_KEY \\
-    --vault-addr https://vault.example.com \\
-    --vault-path secret/data/prod \\
-    --kv-version 2
 
   # Skip YAML generation
   python vault_value_input.py -i DB_PASSWORD --skip-yaml
         """
     )
-    
     parser.add_argument(
         "-i", "--input",
         required=True,
         help="Comma-separated list of secret keys (e.g., GITHUB_TOKEN,NPM_TOKEN)"
-    )
-    parser.add_argument(
-        "--vault-addr",
-        help="Vault server address (default: from VAULT_ADDR env)"
-    )
-    parser.add_argument(
-        "--vault-path",
-        help="Vault path (default: from VAULT_PATH env)"
-    )
-    parser.add_argument(
-        "--vault-token",
-        help="Vault authentication token (default: from VAULT_TOKEN or RD_OPTION_VAULTTOKEN env)"
-    )
-    parser.add_argument(
-        "--kv-version",
-        type=int,
-        choices=[1, 2],
-        help="Vault KV secrets engine version (default: from VAULT_KV_VERSION env or 1)"
     )
     parser.add_argument(
         "--skip-yaml",
@@ -82,18 +60,6 @@ Examples:
 
 
 def parse_input_keys(input_string: str) -> List[str]:
-    """
-    Parse and validate comma-separated keys
-    
-    Args:
-        input_string: Comma-separated key names
-    
-    Returns:
-        List of validated key names
-    
-    Raises:
-        ValidationError: If no valid keys found
-    """
     keys = [k.strip() for k in input_string.split(",") if k.strip()]
     
     if not keys:
@@ -104,7 +70,6 @@ def parse_input_keys(input_string: str) -> List[str]:
 
 
 def get_rundeck_context() -> Dict[str, str]:
-    """Extract Rundeck execution context from environment variables"""
     context = {
         "env": os.environ.get("RD_OPTION_ENV", "dev"),
         "vault_name": os.environ.get("RD_OPTION_VAULTNAME", "default-service"),
