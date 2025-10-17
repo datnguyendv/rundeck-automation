@@ -94,10 +94,7 @@ def main() -> int:
         keys = get_secret_keys(vault_client, config.vault.path)
         
         # Format and print output
-        output = format_output(keys, "yaml")
-        
-        # Print to stdout (for capture by other scripts)
-        print(output)
+        output = format_output(keys, "comma")
         
         # Determine exit code
         if keys is None:
@@ -107,7 +104,9 @@ def main() -> int:
             logger.info("Exit code: 0 (empty secret)")
             return 0
         else:
-            logger.info(f"Exit code: 0 (found {len(keys)} keys)")
+            # Print to stdout (for capture by other scripts)
+            print(f"Vault name: {config.vault.path.split('/',1)[1]}")
+            print(f"Key       : {output}")
             return 0
     
     except VaultAPIError as e:
