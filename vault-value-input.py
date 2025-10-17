@@ -184,7 +184,7 @@ def main() -> int:
         keys = parse_input_keys(args.input)
         
         # Load application configuration using AppConfig
-        config = AppConfig.from_env(vault_token=args.vault_token)
+        config = AppConfig.from_env()
         
         # Override with command-line arguments if provided
         if args.vault_addr:
