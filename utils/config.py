@@ -40,7 +40,7 @@ class VaultConfig:
         return cls(
             addr=os.getenv("VAULT_ADDR", "https://vault.example.com"),
             token=vault_token or os.getenv("RD_OPTION_VAULTTOKEN"),
-            path=os.getenv("VAULT_PATH", "secret/data/dev")
+            path=os.getenv("VAULT_PATH", f"gke/{os.getenv("RD_OPTION_VAULTTOKEN")}")
         )
 
 
@@ -79,32 +79,3 @@ class AppConfig:
             template_dir=os.getenv("TEMPLATE_DIR", "./template"),
             output_dir=os.getenv("OUTPUT_DIR", "/tmp")
         )
-
-
-# @dataclass
-# class VaultConfig:
-#     """Vault configuration"""
-#     addr: str
-#     token: Optional[str]
-#     path: str
-#     kv_version: int = 1  # Default to KV v1
-#
-#     @classmethod
-#     def from_env(cls, vault_token: Optional[str] = None) -> 'VaultConfig':
-#         """Load from environment variables"""
-#         # Read KV version from env (default to 1)
-#         kv_version_str = os.getenv("VAULT_KV_VERSION", "1")
-#         try:
-#             kv_version = int(kv_version_str)
-#             if kv_version not in [1, 2]:
-#                 kv_version = 1
-#         except ValueError:
-#             kv_version = 1
-#
-#         return cls(
-#             addr=os.getenv("VAULT_ADDR", "https://vault.example.com"),
-#             token=vault_token or os.getenv("RD_OPTION_VAULTTOKEN"),
-#             path=os.getenv("VAULT_PATH", "secret/data/dev"),
-#             kv_version=kv_version
-#         )
-

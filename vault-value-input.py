@@ -153,15 +153,15 @@ def main() -> int:
         if not config.vault.token:
             logger.error("Vault token is required")
             return 1
-        
+
         if not config.vault.path:
             logger.error("Vault path is required")
             return 1
-        
+
         # Log configuration
         logger.info(f"Vault address: {config.vault.addr}")
         logger.info(f"Vault path: {config.vault.path}")
-        
+
         # Get Rundeck context
         rundeck_context = get_rundeck_context()
         
