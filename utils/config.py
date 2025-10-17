@@ -40,7 +40,7 @@ class VaultConfig:
         return cls(
             addr=os.getenv("VAULT_ADDR", "https://vault.example.com"),
             token=vault_token or os.getenv("RD_OPTION_VAULTTOKEN"),
-            path=os.getenv("VAULT_PATH", f"gke/{os.getenv("RD_OPTION_VAULTTOKEN")}")
+            path=os.getenv("VAULT_PATH", f"gke/{os.getenv("RD_OPTION_VAULTNAME")}")
         )
 
 
