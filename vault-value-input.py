@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """
 Rundeck script: Import secrets into HashiCorp Vault
+
+Usage:
+  # Import from Rundeck options
+  python vault_value_input.py -i GITHUB_TOKEN,NPM_TOKEN
+
+  # With custom Vault settings
+  python vault_value_input.py -i API_KEY --vault-addr https://vault.example.com --vault-path secret/data/prod
 """
 import argparse
 import os
@@ -24,15 +31,21 @@ logger = setup_logger(__name__)
 def parse_arguments() -> argparse.Namespace:
     """Parse and validate command line arguments"""
     parser = argparse.ArgumentParser(
-        description="Import secrets into HashiCorp Vault",
+        description="Import secrets into HashiCorp Vault (KV v1 or v2)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Import from Rundeck options
+  # Import from Rundeck options (uses env vars)
   python vault_value_input.py -i GITHUB_TOKEN,NPM_TOKEN
 
-  # With custom Vault settings
-  python vault_value_input.py -i API_KEY --vault-addr https://vault.example.com --vault-path secret/data/prod
+  # Override Vault settings
+  python vault_value_input.py -i API_KEY \\
+    --vault-addr https://vault.example.com \\
+    --vault-path secret/data/prod \\
+    --kv-version 2
+
+  # Skip YAML generation
+  python vault_value_input.py -i DB_PASSWORD --skip-yaml
         """
     )
     
@@ -43,18 +56,21 @@ Examples:
     )
     parser.add_argument(
         "--vault-addr",
-        default=os.environ.get("VAULT_ADDR", "https://vault.example.com"),
         help="Vault server address (default: from VAULT_ADDR env)"
     )
     parser.add_argument(
         "--vault-path",
-        default=os.environ.get("VAULT_PATH", "secret/data/dev"),
         help="Vault path (default: from VAULT_PATH env)"
     )
     parser.add_argument(
         "--vault-token",
-        default=os.environ.get("RD_OPTION_VAULTTOKEN"),
-        help="Vault authentication token (default: from RD_OPTION_VAULTTOKEN env)"
+        help="Vault authentication token (default: from VAULT_TOKEN or RD_OPTION_VAULTTOKEN env)"
+    )
+    parser.add_argument(
+        "--kv-version",
+        type=int,
+        choices=[1, 2],
+        help="Vault KV secrets engine version (default: from VAULT_KV_VERSION env or 1)"
     )
     parser.add_argument(
         "--skip-yaml",
@@ -62,13 +78,7 @@ Examples:
         help="Skip YAML generation step"
     )
     
-    args = parser.parse_args()
-    
-    # Validate token
-    if not args.vault_token:
-        parser.error("Vault token required: use --vault-token or set RD_OPTION_VAULTTOKEN")
-    
-    return args
+    return parser.parse_args()
 
 
 def parse_input_keys(input_string: str) -> List[str]:
@@ -93,9 +103,9 @@ def parse_input_keys(input_string: str) -> List[str]:
     return keys
 
 
-def get_rundeck_config() -> Dict[str, str]:
-    """Extract configuration from Rundeck environment variables"""
-    config = {
+def get_rundeck_context() -> Dict[str, str]:
+    """Extract Rundeck execution context from environment variables"""
+    context = {
         "env": os.environ.get("RD_OPTION_ENV", "dev"),
         "vault_name": os.environ.get("RD_OPTION_VAULTNAME", "default-service"),
         "namespace": os.environ.get("RD_OPTION_NAMESPACE", "default"),
@@ -104,35 +114,39 @@ def get_rundeck_config() -> Dict[str, str]:
         "exec_id": os.environ.get("RD_JOB_EXECID", "0")
     }
     
-    logger.info(f"Rundeck config: env={config['env']}, vault={config['vault_name']}")
-    return config
+    logger.info(f"Rundeck context: env={context['env']}, vault={context['vault_name']}")
+    return context
 
 
-def generate_vault_gke_yaml(keys: List[str], config: Dict[str, str]) -> bool:
+def generate_vault_gke_yaml(
+    keys: List[str],
+    context: Dict[str, str],
+    template_dir: Path
+) -> bool:
     """
     Generate vault-gke YAML configuration
     
     Args:
         keys: List of secret keys
-        config: Rundeck configuration
+        context: Rundeck execution context
+        template_dir: Path to template directory
     
     Returns:
         True if successful, False if skipped/failed
     """
     try:
-        base_dir = Path(__file__).resolve().parent
-        template_dir = base_dir / "template"
+        template_file = template_dir / "vault-gke.j2"
         
-        if not (template_dir / "vault-gke.j2").exists():
-            logger.warning("Template 'vault-gke.j2' not found, skipping YAML generation")
+        if not template_file.exists():
+            logger.warning(f"Template '{template_file}' not found, skipping YAML generation")
             return False
         
         # Prepare template data
         template_data = {
-            "ENV": config["env"],
-            "vault_name": config["vault_name"],
-            "namespace": config["namespace"],
-            "action": config["action"],
+            "ENV": context["env"],
+            "vault_name": context["vault_name"],
+            "namespace": context["namespace"],
+            "action": context["action"],
             "vault_keys": keys
         }
         
@@ -140,9 +154,9 @@ def generate_vault_gke_yaml(keys: List[str], config: Dict[str, str]) -> bool:
         renderer = TemplateRenderer(template_dir=template_dir)
         
         # Save to file
-        output_dir = Path(f"/tmp/{config['job_id']}")
+        output_dir = Path(f"/tmp/{context['job_id']}")
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / f"vault-gke-{config['exec_id']}.yaml"
+        output_file = output_dir / f"vault-gke-{context['exec_id']}.yaml"
         
         renderer.render_to_file("vault-gke.j2", template_data, output_file)
         logger.info(f"✅ YAML generated: {output_file}")
@@ -203,14 +217,45 @@ def main() -> int:
         # Parse arguments
         args = parse_arguments()
         keys = parse_input_keys(args.input)
-        config = get_rundeck_config()
+        
+        # Load application configuration using AppConfig
+        config = AppConfig.from_env(vault_token=args.vault_token)
+        
+        # Override with command-line arguments if provided
+        if args.vault_addr:
+            config.vault.addr = args.vault_addr
+        
+        if args.vault_path:
+            config.vault.path = args.vault_path
+        
+        if args.kv_version:
+            config.vault.kv_version = args.kv_version
+        
+        # Validate required config
+        if not config.vault.token:
+            logger.error("Vault token is required")
+            return 1
+        
+        if not config.vault.path:
+            logger.error("Vault path is required")
+            return 1
+        
+        # Log configuration
+        logger.info(f"Vault address: {config.vault.addr}")
+        logger.info(f"Vault path: {config.vault.path}")
+        logger.info(f"KV version: v{config.vault.kv_version}")
+        
+        # Get Rundeck context
+        rundeck_context = get_rundeck_context()
         
         # Step 1: Generate YAML (optional)
         if not args.skip_yaml:
             logger.info("\n" + "=" * 80)
             logger.info("STEP 1: Generating vault-gke YAML")
             logger.info("=" * 80)
-            generate_vault_gke_yaml(keys, config)
+            
+            template_dir = Path(config.template_dir)
+            generate_vault_gke_yaml(keys, rundeck_context, template_dir)
         else:
             logger.info("Skipping YAML generation (--skip-yaml)")
         
@@ -226,12 +271,14 @@ def main() -> int:
         logger.info("STEP 3: Writing secrets to Vault")
         logger.info("=" * 80)
         
+        # Initialize Vault client using AppConfig
         vault_client = VaultClient(
-            addr=args.vault_addr,
-            token=args.vault_token
+            addr=config.vault.addr,
+            token=config.vault.token,
+            kv_version=config.vault.kv_version
         )
         
-        vault_client.write_secret(args.vault_path, secret_data)
+        vault_client.write_secret(config.vault.path, secret_data)
         
         # Success
         logger.info("\n" + "=" * 80)
