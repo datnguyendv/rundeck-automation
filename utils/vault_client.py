@@ -106,7 +106,6 @@ class VaultClient:
             
             response.raise_for_status()
             result = response.json()
-            print(result)
             
             # Extract data based on KV version
             if self.kv_version == 1:
