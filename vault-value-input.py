@@ -199,7 +199,6 @@ def main() -> int:
         # Log configuration
         logger.info(f"Vault address: {config.vault.addr}")
         logger.info(f"Vault path: {config.vault.path}")
-        logger.info(f"KV version: v{config.vault.kv_version}")
         
         # Get Rundeck context
         rundeck_context = get_rundeck_context()
