@@ -1,14 +1,3 @@
-#!/usr/bin/env python3
-"""
-Rundeck script: Import secrets into HashiCorp Vault
-
-Usage:
-  # Import from Rundeck options
-  python vault_value_input.py -i GITHUB_TOKEN,NPM_TOKEN
-
-  # With custom Vault settings
-  python vault_value_input.py -i API_KEY --vault-addr https://vault.example.com --vault-path secret/data/prod
-"""
 import argparse
 import os
 import sys
@@ -26,7 +15,6 @@ from utils import (
 )
 
 logger = setup_logger(__name__)
-
 
 def parse_arguments() -> argparse.Namespace:
     """Parse and validate command line arguments"""
@@ -88,17 +76,6 @@ def generate_vault_gke_yaml(
     context: Dict[str, str],
     template_dir: Path
 ) -> bool:
-    """
-    Generate vault-gke YAML configuration
-    
-    Args:
-        keys: List of secret keys
-        context: Rundeck execution context
-        template_dir: Path to template directory
-    
-    Returns:
-        True if successful, False if skipped/failed
-    """
     try:
         template_file = template_dir / "vault-gke.j2"
         
@@ -132,17 +109,7 @@ def generate_vault_gke_yaml(
         logger.warning(f"YAML generation failed: {e}")
         return False
 
-
 def gather_secret_data(keys: List[str]) -> Dict[str, str]:
-    """
-    Gather secret values from Rundeck options
-    
-    Args:
-        keys: List of secret key names
-    
-    Returns:
-        Dictionary of key-value pairs
-    """
     data_dict = {}
     missing_keys = []
     
@@ -168,12 +135,6 @@ def gather_secret_data(keys: List[str]) -> Dict[str, str]:
 
 
 def main() -> int:
-    """
-    Main execution flow
-    
-    Returns:
-        Exit code (0 = success, 1 = failure)
-    """
     try:
         logger.info("=" * 80)
         logger.info("🚀 Vault Secret Importer - Starting")
