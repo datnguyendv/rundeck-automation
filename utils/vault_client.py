@@ -84,21 +84,6 @@ class VaultClient:
             raise VaultAPIError(error_msg)
     
     def read_secret(self, path: str, version: Optional[int] = None) -> Dict[str, Any]:
-        """
-        Read secret from Vault
-        
-        Args:
-            path: Vault path
-                  - For KV v1: 'secret/myapp'
-                  - For KV v2: 'secret/data/myapp'
-            version: (KV v2 only) Specific version to read
-        
-        Returns:
-            Secret data dictionary
-        
-        Raises:
-            VaultAPIError: If read fails
-        """
         url = f"{self.addr}/v1/{path}"
         
         # Add version parameter for KV v2
@@ -121,6 +106,7 @@ class VaultClient:
             
             response.raise_for_status()
             result = response.json()
+            print(result)
             
             # Extract data based on KV version
             if self.kv_version == 1:
@@ -146,23 +132,6 @@ class VaultClient:
             raise VaultAPIError(error_msg)
     
     def delete_secret(self, path: str) -> bool:
-        """
-        Delete secret from Vault
-        
-        For KV v1: Permanently deletes the secret
-        For KV v2: Soft delete (marks latest version as deleted, can be undeleted)
-        
-        Args:
-            path: Vault path
-                  - For KV v1: 'secret/myapp'
-                  - For KV v2: 'secret/data/myapp'
-        
-        Returns:
-            True if successful
-        
-        Raises:
-            VaultAPIError: If deletion fails
-        """
         url = f"{self.addr}/v1/{path}"
         
         logger.info(f"Deleting secret from Vault (KV v{self.kv_version})")
@@ -204,19 +173,6 @@ class VaultClient:
             raise VaultAPIError(error_msg)
     
     def delete_versions(self, path: str, versions: List[int]) -> bool:
-        """
-        Delete specific versions of a secret (KV v2 only)
-        
-        Args:
-            path: Vault metadata path (e.g., 'secret/metadata/myapp')
-            versions: List of version numbers to delete
-        
-        Returns:
-            True if successful
-        
-        Raises:
-            VaultAPIError: If deletion fails or using KV v1
-        """
         if self.kv_version == 1:
             raise VaultAPIError("delete_versions is only available for KV v2")
         
@@ -257,19 +213,6 @@ class VaultClient:
             raise VaultAPIError(error_msg)
     
     def undelete_versions(self, path: str, versions: List[int]) -> bool:
-        """
-        Undelete specific versions of a secret (KV v2 only)
-        
-        Args:
-            path: Vault path (e.g., 'secret/data/myapp')
-            versions: List of version numbers to undelete
-        
-        Returns:
-            True if successful
-        
-        Raises:
-            VaultAPIError: If undelete fails or using KV v1
-        """
         if self.kv_version == 1:
             raise VaultAPIError("undelete_versions is only available for KV v2")
         
@@ -310,20 +253,6 @@ class VaultClient:
             raise VaultAPIError(error_msg)
     
     def destroy_versions(self, path: str, versions: List[int]) -> bool:
-        """
-        Permanently destroy specific versions of a secret (KV v2 only)
-        This operation is irreversible!
-        
-        Args:
-            path: Vault path (e.g., 'secret/data/myapp')
-            versions: List of version numbers to destroy
-        
-        Returns:
-            True if successful
-        
-        Raises:
-            VaultAPIError: If destroy fails or using KV v1
-        """
         if self.kv_version == 1:
             raise VaultAPIError("destroy_versions is only available for KV v2")
         
