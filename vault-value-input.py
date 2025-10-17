@@ -187,16 +187,7 @@ def main() -> int:
         config = AppConfig.from_env()
         
         # Override with command-line arguments if provided
-        if args.vault_addr:
-            config.vault.addr = args.vault_addr
-        
-        if args.vault_path:
-            config.vault.path = args.vault_path
-        
-        if args.kv_version:
-            config.vault.kv_version = args.kv_version
-        
-        # Validate required config
+                # Validate required config
         if not config.vault.token:
             logger.error("Vault token is required")
             return 1
