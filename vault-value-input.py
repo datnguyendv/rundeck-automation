@@ -230,7 +230,7 @@ def main() -> int:
         vault_client = VaultClient(
             addr=config.vault.addr,
             token=config.vault.token,
-            kv_version=config.vault.kv_version
+            # kv_version=config.vault.kv_version
         )
         
         vault_client.write_secret(config.vault.path, secret_data)
