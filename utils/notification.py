@@ -1,6 +1,3 @@
-"""
-Notification module with retry logic and better error handling
-"""
 import logging
 import requests
 from typing import Optional
@@ -14,7 +11,6 @@ logger = setup_logger(__name__)
 
 @dataclass
 class NotificationMessage:
-    """Structured notification message"""
     title: str
     link: str
     user: str
@@ -36,26 +32,12 @@ class NotificationMessage:
 
 
 class SlackNotifier:
-    """Slack notification client with retry logic"""
-    
     def __init__(self, webhook_url: Optional[str] = None, timeout: int = 10, max_retries: int = 3):
         self.webhook_url = webhook_url
         self.timeout = timeout
         self.max_retries = max_retries
     
     def send(self, message: NotificationMessage) -> bool:
-        """
-        Send notification to Slack with retry logic
-        
-        Args:
-            message: NotificationMessage instance
-        
-        Returns:
-            True if successful, False otherwise
-        
-        Raises:
-            NotificationError: If all retries failed
-        """
         if not self.webhook_url:
             logger.warning("Slack webhook URL not configured, skipping notification")
             return False
@@ -92,23 +74,11 @@ class SlackNotifier:
         raise NotificationError(error_msg)
     
     def send_simple(self, title: str, link: str, user: str) -> bool:
-        """
-        Convenience method for simple notifications
-        
-        Args:
-            title: Notification title
-            link: URL to include
-            user: Username who triggered action
-        
-        Returns:
-            True if successful
-        """
         message = NotificationMessage(title=title, link=link, user=user)
         return self.send(message)
 
 
 # Backward compatibility function
 def send_to_slack(title: str, link: str, user: str, webhook_url: Optional[str] = None) -> bool:
-    """Legacy function interface"""
     notifier = SlackNotifier(webhook_url=webhook_url)
     return notifier.send_simple(title, link, user)

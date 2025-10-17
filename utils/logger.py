@@ -11,17 +11,6 @@ def setup_logger(
     level: int = logging.INFO,
     log_file: Optional[str] = None
 ) -> logging.Logger:
-    """
-    Setup structured logger with consistent format
-    
-    Args:
-        name: Logger name (usually __name__)
-        level: Logging level
-        log_file: Optional file path to write logs
-    
-    Returns:
-        Configured logger instance
-    """
     logger = logging.getLogger(name)
     logger.setLevel(level)
     

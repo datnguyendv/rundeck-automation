@@ -124,18 +124,6 @@ class RundeckClient:
             logger.warning(f"Error parsing response for permalink: {e}")
             return "N/A"
     def delete_job(self, job_id: str) -> bool:
-        """
-        Delete a Rundeck job by ID
-        
-        Args:
-            job_id: Job UUID or ID
-        
-        Returns:
-            True if deleted successfully
-        
-        Raises:
-            RundeckAPIError: If deletion fails
-        """
         url = f"{self.url}/api/54/job/{job_id}"
         
         logger.info(f"🗑️  Deleting Rundeck job: {job_id}")
