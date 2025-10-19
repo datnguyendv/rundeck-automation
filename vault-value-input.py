@@ -94,7 +94,6 @@ def generate_vault_gke_yaml(
         
         # Render template
         renderer = TemplateRenderer(template_dir=template_dir)
-        print(template_dir)
         
         # Save to file
         output_dir = Path(f"/tmp/{context['job_id']}")
