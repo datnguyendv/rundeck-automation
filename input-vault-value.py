@@ -193,7 +193,7 @@ def main() -> int:
             # kv_version=config.vault.kv_version
         )
         
-        if rundeck_context.action == "add":
+        if rundeck_context["action"] == "add":
             vault_client.put_secret(config.vault.path, secret_data)
         else:
             vault_client.write_secret(config.vault.path, secret_data)
