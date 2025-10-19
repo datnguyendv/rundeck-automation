@@ -76,6 +76,6 @@ class AppConfig:
             rundeck=RundeckConfig.from_env(),
             vault=VaultConfig.from_env(vault_token),
             slack=SlackConfig.from_env(),
-            template_dir=os.getenv("TEMPLATE_DIR", "./template"),
+            template_dir= f'{os.getenv("EXEC_LOCATION", "./")}/template',
             output_dir=os.getenv("OUTPUT_DIR", "/tmp")
         )
