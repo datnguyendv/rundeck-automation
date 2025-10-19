@@ -1,9 +1,7 @@
-{#- Vault GKE Configuration Template -#}
 {%- set env = ENV | default('dev') -%}
 {%- set env_upper = env | upper -%}
 {%- set env_lower = env | lower -%}
 
-# For GCP
 vault_address: https://vault-cloud.chotot.com
 vault_token_env: CHOTOT_VAULT_GCP_{{ env_upper }}_TOKEN
 
@@ -12,6 +10,23 @@ vault_secret_engine: gke-{{ env_lower }}
 vault_k8s_auth_path: gke-{{ env_lower }}
 
 services:
+{% if action == 'recreate' %}
+  - name: {{ vault_name | default('default-service') }}
+    namespace: {{ namespace | default('default') }}
+    action: delete
+    secrets:
+{% for key in vault_keys %}
+      - {{ key }}
+{% endfor %}
+
+  - name: {{ vault_name | default('default-service') }}
+    namespace: {{ namespace | default('default') }}
+    action: create
+    secrets:
+{% for key in vault_keys %}
+      - {{ key }}
+{% endfor %}
+{% else %}
   - name: {{ vault_name | default('default-service') }}
     namespace: {{ namespace | default('default') }}
     action: {{ action | default('create') }}
@@ -19,3 +34,4 @@ services:
 {% for key in vault_keys %}
       - {{ key }}
 {% endfor %}
+{% endif %}
