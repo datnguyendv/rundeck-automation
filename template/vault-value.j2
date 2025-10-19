@@ -10,7 +10,7 @@
           export EXEC_LOCATION=$HOME/projects/$RD_JOB_PROJECT
           echo $EXEC_LOCATION
           ls $EXEC_LOCATION
-          python3 $EXEC_LOCATION/vault-value-input.py -i {{keys}}
+          python3 $EXEC_LOCATION/input-vault-value.py -i {{keys}}
       - description: Job completed
         autoSecureInput: "{{ autoSecureInput | default('false') }}"
         passSecureInput: "{{ passSecureInput | default('false') }}"
