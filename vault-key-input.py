@@ -79,7 +79,7 @@ def generate_job_data(context: Dict[str, str]) -> Dict:
         result = {
             "options": [],
             "group": "approval",
-            "name": job_name,
+            "name": job_name.capitalize(),
             "keys": vault_keys_raw,
             "job_id": context["job_id"],
             "execution_uuid": context["execution_uuid"],
@@ -183,7 +183,7 @@ def main() -> int:
         if config.slack.enabled:
             notifier = SlackNotifier(webhook_url=config.slack.webhook_url)
             message = NotificationMessage(
-                title=job_name.capitalize(),
+                title=job_name,
                 link=job_link,
                 user=context["user"]
             )
