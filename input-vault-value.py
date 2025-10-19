@@ -133,7 +133,6 @@ def gather_secret_data(keys: List[str]) -> Dict[str, str]:
     logger.info(f"Gathered {len(data_dict)} secret values")
     return data_dict
 
-
 def main() -> int:
     try:
         logger.info("=" * 80)
@@ -194,7 +193,11 @@ def main() -> int:
             # kv_version=config.vault.kv_version
         )
         
-        vault_client.write_secret(config.vault.path, secret_data)
+        if rundeck_context.action == "add":
+            vault_client.put_secret(config.vault.path, secret_data)
+        else:
+            vault_client.write_secret(config.vault.path, secret_data)
+        # vault_client.write_secret(config.vault.path, secret_data)
         
         # Success
         logger.info("\n" + "=" * 80)

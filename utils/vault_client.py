@@ -8,7 +8,6 @@ from .logger import setup_logger
 
 logger = setup_logger(__name__)
 
-
 class VaultClient:
     def __init__(
         self, 
@@ -331,3 +330,37 @@ class VaultClient:
             error_msg = f"Failed to delete metadata: {str(e)}"
             logger.error(error_msg)
             raise VaultAPIError(error_msg)
+
+    def put_secret(self, path: str, data: Dict[str, Any]) -> bool:
+        try:
+            existing_data = {}
+            try:
+                existing_data = self.read_secret(path)
+                logger.debug(f"Found {len(existing_data)} existing keys in Vault")
+            except VaultAPIError as e:
+                if "not found" in str(e).lower():
+                    logger.info("Secret not found → creating new secret")
+                else:
+                    raise
+
+            merged_data = {**existing_data, **data}
+
+            self.write_secret(path, merged_data)
+            new_keys = set(data.keys()) - set(existing_data.keys())
+            updated_keys = set(data.keys()) & set(existing_data.keys())
+
+            if new_keys:
+                logger.info(f"🆕 Added new keys: {', '.join(new_keys)}")
+            if updated_keys:
+                logger.info(f"♻️ Updated existing keys: {', '.join(updated_keys)}")
+
+            logger.info("✅ Successfully merged and stored secret")
+            return True
+
+        except VaultAPIError as e:
+            logger.error(f"Vault put_secret failed: {e}")
+            raise
+        except Exception as e:
+            logger.exception(f"Unexpected error during put_secret: {e}")
+            raise VaultAPIError(str(e))
+
