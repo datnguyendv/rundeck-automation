@@ -8,6 +8,9 @@ from utils import (
     AppConfig,
     TemplateRenderer,
     RundeckClient,
+    VaultClient,
+    VaultAPIError,
+    ValidationError,
     SlackNotifier,
     NotificationMessage,
     TemplateRenderError,
@@ -17,7 +20,6 @@ from utils import (
 )
 
 logger = setup_logger(__name__)
-
 
 def get_rundeck_context() -> Dict[str, str]:
     context = {
@@ -109,7 +111,36 @@ def main() -> int:
         
         # Get execution context
         context = get_rundeck_context()
-        
+        config = AppConfig.from_env()
+        rundeck = RundeckClient(
+            url=config.rundeck.url,
+            token=config.rundeck.token,
+            project=config.rundeck.project
+        )
+        vault_client = VaultClient(
+            addr=config.vault.addr,
+            token=config.vault.token,
+        )
+        if context["action"] == "create":
+            try:
+                existing_secret = vault_client.read_secret(config.vault.path)
+                error_msg = (
+                        f"VALIDATION FAILED: Secret already exists at path '{config.vault.path}'\n"
+                        f"Cannot create a secret that already exists.\n"
+                        f"Please contact to admin(sre-team)"
+                    )
+                logger.error(error_msg)
+                raise ValidationError(error_msg)
+            except VaultAPIError as e:
+                # Check if it's a "not found" error (which is what we want)
+                error_str = str(e).lower()
+                if "not found" in error_str or "404" in error_str or "no value found" in error_str:
+                    logger.info(f"✅ Validation passed: Secret does not exist at '{config.vault.path}'")
+                else:
+                    # Other Vault error (permission, network, etc.)
+                    logger.error(f"Vault API error during validation: {e}")
+                    raise VaultAPIError(f"Failed to validate secret existence: {e}")
+
         # Setup paths
         base_dir = Path(__file__).resolve().parent
         output_dir = Path(f"/tmp/{context['job_id']}/{context['execution_uuid']}")
@@ -140,13 +171,6 @@ def main() -> int:
         logger.info("\n" + "=" * 80)
         logger.info("STEP 3: Importing job to Rundeck")
         logger.info("=" * 80)
-        
-        config = AppConfig.from_env()
-        rundeck = RundeckClient(
-            url=config.rundeck.url,
-            token=config.rundeck.token,
-            project=config.rundeck.project
-        )
         
         response_data = rundeck.import_job(output_file)
         job_link = rundeck.get_job_permalink(response_data)
