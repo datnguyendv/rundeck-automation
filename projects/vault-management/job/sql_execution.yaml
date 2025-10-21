@@ -1,0 +1,33 @@
+- description: Execute SQL Query
+  group: sql
+  executionEnabled: true
+  loglevel: INFO
+  name: Run_SQL_Query
+  nodeFilterEditable: false
+  options:
+    - name: db_host
+      required: true
+    - name: db_name
+      required: true
+    - name: db_user
+      required: true
+    - name: db_password
+      required: true
+      secure: true
+      storagePath: keys/db/password
+    - name: sql_query
+      required: true
+  scheduleEnabled: false
+  sequence:
+    keepgoing: false
+    strategy: node-first
+    commands:
+      - script: |-
+          #!/bin/bash
+          set -e
+          export PGPASSWORD="${RD_OPTION_DB_PASSWORD}"
+          psql -h "${RD_OPTION_DB_HOST}" \
+               -U "${RD_OPTION_DB_USER}" \
+               -d "${RD_OPTION_DB_NAME}" \
+               -c "${RD_OPTION_SQL_QUERY}"
+  uuid: your-uuid-here
