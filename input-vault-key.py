@@ -51,29 +51,29 @@ def generate_job_data(context: Dict[str, str]) -> Dict:
         if not vault_keys:
             raise ConfigurationError("No valid vault keys provided")
         
-        logger.info(f"Vault name: {context["vault_name"]}")
-        logger.info(f"Namespace: {context["namespace"]}")
-        logger.info(f"Action: {context["action"]}")
+        logger.info(f"Vault name: {context['vault_name']}")
+        logger.info(f"Namespace: {context['namespace']}")
+        logger.info(f"Action: {context['action']}")
         logger.info(f"Vault keys: {', '.join(vault_keys)}")
         
         # Generate job name
-        job_name = f"{context["action"]} vault value for {context["vault_name"]}"
+        job_name = f"{context["action"]} vault value for {context['vault_name']}"
         
         # Build job data structure
         result = {
             "options": [],
             "group": "approval",
             "name": job_name.capitalize(),
-            "keys": context["vault_keys_raw"],
-            "job_id": context["job_id"],
-            "execution_uuid": context["execution_uuid"],
+            "keys": context['vault_keys_raw'],
+            "job_id": context['job_id'],
+            "execution_uuid": context['execution_uuid'],
         }
         
         # Add metadata options
         result["options"].extend([
-            {"name": "VaultName", "description": "Vault secret name", "value": context["vault_name"]},
-            {"name": "namespace", "description": "K8s namespace", "value": context["namespace"]},
-            {"name": "Action", "description": "Action type", "value": context["action"]},
+            {"name": "VaultName", "description": "Vault secret name", "value": context['vault_name']},
+            {"name": "namespace", "description": "K8s namespace", "value": context['namespace']},
+            {"name": "Action", "description": "Action type", "value": context['action']},
         ])
         
         # Add secure VaultToken option
@@ -122,25 +122,17 @@ def main() -> int:
             token=config.vault.token,
         )
         if context["action"] == "create":
-            try:
-                existing_secret = vault_client.read_secret(config.vault.path)
-                error_msg = (
-                        f"VALIDATION FAILED: Secret already exists at path '{config.vault.path}'\n"
-                        f"Cannot create a secret that already exists.\n"
-                        f"Please contact to admin(sre-team)"
-                    )
-                logger.error(error_msg)
-                raise ValidationError(error_msg)
-            except VaultAPIError as e:
-                # Check if it's a "not found" error (which is what we want)
-                error_str = str(e).lower()
-                if "not found" in error_str or "404" in error_str or "no value found" in error_str:
-                    logger.info(f"✅ Validation passed: Secret does not exist at '{config.vault.path}'")
-                else:
-                    # Other Vault error (permission, network, etc.)
-                    logger.error(f"Vault API error during validation: {e}")
-                    raise VaultAPIError(f"Failed to validate secret existence: {e}")
-
+            existing_secret = vault_client.read_secret(config.vault.path)
+            
+            # Secret exists → raise error WITHOUT logging here
+            error_msg = (
+                f"❌ VALIDATION FAILED: Secret already exists at path '{config.vault.path}'\n"
+                f"Cannot create a secret that already exists.\n"
+                f"Please contact admin (SRE team) or use action 'update'/'delete'."
+            )
+            logger.error(error_msg)
+            # raise ValidationError(error_msg)  # Raise without logging
+            return 1
         # Setup paths
         base_dir = Path(__file__).resolve().parent
         output_dir = Path(f"/tmp/{context['job_id']}/{context['execution_uuid']}")
