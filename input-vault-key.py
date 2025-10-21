@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-"""
-Rundeck script: Generate approval job for vault key input
-"""
 import os
 import sys
 from pathlib import Path
@@ -24,7 +20,6 @@ logger = setup_logger(__name__)
 
 
 def get_rundeck_context() -> Dict[str, str]:
-    """Extract Rundeck job context from environment"""
     context = {
         "job_id": os.getenv("RD_JOB_ID", "unknown_job"),
         "execution_uuid": os.getenv("RD_JOB_EXECUTIONUUID", "unknown_exec"),
@@ -36,18 +31,6 @@ def get_rundeck_context() -> Dict[str, str]:
 
 
 def generate_job_data(context: Dict[str, str]) -> Dict:
-    """
-    Generate job template data from environment variables
-    
-    Args:
-        context: Rundeck execution context
-    
-    Returns:
-        Job data dictionary for template rendering
-    
-    Raises:
-        ConfigurationError: If required environment variables missing
-    """
     try:
         # Read configuration from environment
         vault_name = os.getenv("RD_OPTION_VAULTNAME")
@@ -120,12 +103,6 @@ def generate_job_data(context: Dict[str, str]) -> Dict:
 
 
 def main() -> int:
-    """
-    Main execution flow
-    
-    Returns:
-        Exit code (0 = success, 1 = failure)
-    """
     try:
         logger.info("=" * 80)
         logger.info("🚀 Vault Key Input Job Generator - Starting")
