@@ -25,6 +25,10 @@ def get_rundeck_context() -> Dict[str, str]:
         "execution_uuid": os.getenv("RD_JOB_EXECUTIONUUID", "unknown_exec"),
         "exec_id": os.getenv("RD_JOB_EXECID", "0"),
         "user": os.getenv("RD_JOB_USERNAME", "system"),
+        "vault_name": os.getenv("RD_OPTION_VAULTNAME"),
+        "namespace": os.getenv("RD_OPTION_NAMESPACE", "default"),
+        "action": os.getenv("RD_OPTION_ACTION", "create"),
+        "vault_keys_raw": os.getenv("RD_OPTION_VAULTKEY", "")
     }
     logger.info(f"Rundeck context: job_id={context['job_id']}, user={context['user']}")
     return context
@@ -32,47 +36,42 @@ def get_rundeck_context() -> Dict[str, str]:
 
 def generate_job_data(context: Dict[str, str]) -> Dict:
     try:
-        # Read configuration from environment
-        vault_name = os.getenv("RD_OPTION_VAULTNAME")
-        namespace = os.getenv("RD_OPTION_NAMESPACE", "default")
-        action = os.getenv("RD_OPTION_ACTION", "create")
-        vault_keys_raw = os.getenv("RD_OPTION_VAULTKEY", "")
-        
-        if not vault_name:
+        # Read configuration from environment       
+        if not context["vault_name"]:
             raise ConfigurationError("RD_OPTION_VAULTNAME is required")
         
-        if not vault_keys_raw:
+        if not context["vault_keys_raw"]:
             raise ConfigurationError("RD_OPTION_VAULTKEY is required")
         
         # Parse vault keys
-        vault_keys = [k.strip() for k in vault_keys_raw.split(",") if k.strip()]
+        vault_keys = [k.strip() for k in context["vault_keys_raw"].split(",") if k.strip()]
         
         if not vault_keys:
             raise ConfigurationError("No valid vault keys provided")
         
-        logger.info(f"Vault name: {vault_name}")
-        logger.info(f"Namespace: {namespace}")
-        logger.info(f"Action: {action}")
+        logger.info(f"Vault name: {context["vault_name"]}")
+        logger.info(f"Namespace: {context["namespace"]}")
+        logger.info(f"Action: {context["action"]}")
         logger.info(f"Vault keys: {', '.join(vault_keys)}")
         
         # Generate job name
-        job_name = f"{action} vault value for {vault_name}"
+        job_name = f"{context["action"]} vault value for {context["vault_name"]}"
         
         # Build job data structure
         result = {
             "options": [],
             "group": "approval",
             "name": job_name.capitalize(),
-            "keys": vault_keys_raw,
+            "keys": context["vault_keys_raw"],
             "job_id": context["job_id"],
             "execution_uuid": context["execution_uuid"],
         }
         
         # Add metadata options
         result["options"].extend([
-            {"name": "VaultName", "description": "Vault secret name", "value": vault_name},
-            {"name": "namespace", "description": "K8s namespace", "value": namespace},
-            {"name": "Action", "description": "Action type", "value": action},
+            {"name": "VaultName", "description": "Vault secret name", "value": context["vault_name"]},
+            {"name": "namespace", "description": "K8s namespace", "value": context["namespace"]},
+            {"name": "Action", "description": "Action type", "value": context["action"]},
         ])
         
         # Add secure VaultToken option
