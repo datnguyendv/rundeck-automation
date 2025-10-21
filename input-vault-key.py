@@ -57,7 +57,7 @@ def generate_job_data(context: Dict[str, str]) -> Dict:
         logger.info(f"Vault keys: {', '.join(vault_keys)}")
         
         # Generate job name
-        job_name = f"{context["action"]} vault value for {context['vault_name']}"
+        job_name = f"{context['action']} vault value for {context['vault_name']}"
         
         # Build job data structure
         result = {
