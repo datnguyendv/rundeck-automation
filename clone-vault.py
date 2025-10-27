@@ -8,6 +8,7 @@ from utils import (
     AppConfig,
     VaultClient,
     VaultAPIError
+    TemplateRenderError,
 )
 
 logger = setup_logger(__name__)
