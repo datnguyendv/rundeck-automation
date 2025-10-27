@@ -190,6 +190,7 @@ def main() -> int:
         source_data, action = result
         keys = list(source_data.keys())
         context['action'] = action
+        template_dir = Path(config.template_dir)
         yaml_generated = generate_vault_gke_yaml(keys, context, template_dir)
         
         if yaml_generated:
