@@ -106,12 +106,15 @@ def copy_vault_secret(
                 raise
         
         # Step 3: Determine final data based on overwrite flag
+        action = "create"  # Default action
         if overwrite or not dest_exists:
             final_data = source_data
+            action = "create"
             logger.info(f"📝 Mode: {'OVERWRITE' if dest_exists else 'CREATE NEW'}")
         else:
             # Merge: source data takes precedence over existing destination data
             final_data = {**existing_dest_data, **source_data}
+            action = "add"
             logger.info("📝 Mode: MERGE (source data takes precedence)")
             
             new_keys = set(source_data.keys()) - set(existing_dest_data.keys())
@@ -135,7 +138,7 @@ def copy_vault_secret(
         logger.info(f"Total keys in destination: {len(final_data)}")
         logger.info("=" * 80)
         
-        return True
+        return (source_data, action)
         
     except VaultAPIError as e:
         logger.error(f"❌ Vault operation failed: {e}")
@@ -174,18 +177,30 @@ def main() -> int:
         )
         
         # Perform copy operation
-        success = copy_vault_secret(
+        result = copy_vault_secret(
             vault_client=vault_client,
-            source_path=context["source_vault_path"],
+            source_path=context['source_vault_path'],
             dest_path=config.vault.path,
         )
-        
-        if success:
-            print(f"✅ Successfully copied secrets from {args.source} to {args.dest}")
+
+        if result:
+            print(f"✅ Successfully copied secrets from {context['source_vault_path']} to {config.vault.path}")
             return 0
         else:
             print(f"❌ Failed to copy secrets")
             return 1
+
+        source_data, action = result
+        keys = list(source_data.keys())
+        context['action'] = action
+        yaml_generated = generate_vault_gke_yaml(source_data.keys(), context, template_dir)
+        
+        if yaml_generated:
+            logger.info("✅ YAML manifest generated successfully")
+        else:
+            logger.warning("⚠️ YAML generation skipped or failed (non-critical)")
+        
+
             
     except VaultAPIError as e:
         logger.error(f"❌ Vault operation failed: {e}")
