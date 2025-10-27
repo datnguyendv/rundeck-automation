@@ -23,6 +23,7 @@ logger = setup_logger(__name__)
 
 def get_rundeck_context() -> Dict[str, str]:
     context = {
+        "env": os.environ.get("RD_OPTION_ENV", "dev"),
         "job_id": os.getenv("RD_JOB_ID", "unknown_job"),
         "execution_uuid": os.getenv("RD_JOB_EXECUTIONUUID", "unknown_exec"),
         "exec_id": os.getenv("RD_JOB_EXECID", "0"),
