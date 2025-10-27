@@ -183,10 +183,7 @@ def main() -> int:
             dest_path=config.vault.path,
         )
 
-        if result:
-            print(f"✅ Successfully copied secrets from {context['source_vault_path']} to {config.vault.path}")
-            return 0
-        else:
+        if not result:
             print(f"❌ Failed to copy secrets")
             return 1
 
