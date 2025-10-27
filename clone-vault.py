@@ -46,7 +46,7 @@ def generate_vault_gke_yaml(
             "ENV": context["env"],
             "vault_name": context["vault_name"],
             "namespace": context["namespace"],
-            "action": "create",
+            "action": context["action"],
             "vault_keys": keys
         }
         
