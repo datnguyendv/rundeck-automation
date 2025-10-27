@@ -21,7 +21,7 @@ def get_rundeck_context() -> Dict[str, str]:
         "vault_name": os.getenv("RD_OPTION_VAULTNAME"),
         "namespace": os.getenv("RD_OPTION_NAMESPACE", "default"),
         "action": os.getenv("RD_OPTION_ACTION", "create"),
-        "source_vault_path": f"{os.getenv('RD_OPTION_SOURCEVAULTNAME')}"
+        "source_vault_path": f"gke/{os.getenv('RD_OPTION_SOURCEVAULTNAME')}"
     }
     logger.info(f"Rundeck context: job_id={context['job_id']}, user={context['user']}")
     return context
