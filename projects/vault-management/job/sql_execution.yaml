@@ -30,4 +30,3 @@
                -U "${RD_OPTION_DB_USER}" \
                -d "${RD_OPTION_DB_NAME}" \
                -c "${RD_OPTION_SQL_QUERY}"
-  uuid: your-uuid-here
