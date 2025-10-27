@@ -193,15 +193,13 @@ def main() -> int:
         source_data, action = result
         keys = list(source_data.keys())
         context['action'] = action
-        yaml_generated = generate_vault_gke_yaml(source_data.keys(), context, template_dir)
+        yaml_generated = generate_vault_gke_yaml(keys, context, template_dir)
         
         if yaml_generated:
             logger.info("✅ YAML manifest generated successfully")
         else:
             logger.warning("⚠️ YAML generation skipped or failed (non-critical)")
         
-
-            
     except VaultAPIError as e:
         logger.error(f"❌ Vault operation failed: {e}")
         print(f"Error: {e}")
