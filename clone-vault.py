@@ -1,7 +1,7 @@
 import argparse
 import sys
 import os
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 from utils import (
     setup_logger,
@@ -73,7 +73,7 @@ def copy_vault_secret(
     source_path: str,
     dest_path: str,
     overwrite: bool = False
-) -> bool:
+) -> Optional[Tuple[Dict[str, Any], str]]:
     try:
         # Step 1: Read data from source vault
         logger.info("=" * 80)
