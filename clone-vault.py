@@ -8,6 +8,7 @@ from utils import (
     AppConfig,
     VaultClient,
     TemplateRenderError,
+    TemplateRenderer,
     VaultAPIError
 )
 
