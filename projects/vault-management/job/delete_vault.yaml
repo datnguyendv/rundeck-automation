@@ -11,6 +11,11 @@
       description: ""
       label: Vault Name
       required: true
+    - name: namespace
+      description: ""
+      label: Namespace
+      value: default
+      required: true
     - description: Vault authentication token
       hidden: true
       name: VaultToken
