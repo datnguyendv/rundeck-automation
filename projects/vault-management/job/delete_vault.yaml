@@ -1,0 +1,35 @@
+- defaultTab: nodes
+  description: Delete vault key
+  executionEnabled: true
+  group: sre
+  multipleExecutions: true
+  loglevel: INFO
+  name: Delete Vault Secret Key
+  nodeFilterEditable: false
+  options:
+    - name: VaultName
+      description: ""
+      label: Vault Name
+      required: true
+    - description: Vault authentication token
+      hidden: true
+      name: VaultToken
+      required: true
+      secure: true
+      storagePath: keys/project/vault-management/Token
+      valueExposed: true
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: true
+  sequence:
+    commands:
+      - description: Delete Vault Key
+        autoSecureInput: "false"
+        passSecureInput: "false"
+        script: |
+          export VAULT_ADDR="http://vault:8200"
+          export EXEC_LOCATION=$HOME/projects/$RD_JOB_PROJECT
+          python3 $EXEC_LOCATION/get-vault-key.py
+          echo "Job finished successfully."
+    keepgoing: false
+    strategy: node-first
