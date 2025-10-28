@@ -32,50 +32,42 @@ def get_rundeck_context() -> Dict[str, str]:
 
 
 def generate_vault_gke_yaml(
-    deleted_keys: List[str],
+    keys: List[str],
     context: Dict[str, str],
-    template_dir: Path,
-    vault_path: str
+    template_dir: Path
 ) -> bool:
     try:
-        # Template can be 'vault-gke.j2' or 'vault-delete.j2'
-        # Using vault-gke.j2 for consistency with clone-vault.py
         template_file = template_dir / "vault-gke.j2"
         
         if not template_file.exists():
             logger.warning(f"Template '{template_file}' not found, skipping YAML generation")
             return False
-
+        
         # Prepare template data
         template_data = {
             "ENV": context["env"],
             "vault_name": context["vault_name"],
             "namespace": context["namespace"],
-            "action": context["action"],  # 'delete'
-            "vault_keys": deleted_keys,
-            "vault_path": vault_path
+            "action": context["action"],
+            "vault_keys": keys
         }
-
+        
         # Render template
         renderer = TemplateRenderer(template_dir=template_dir)
         
         # Save to file
         output_dir = Path(f"/tmp/{context['job_id']}")
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / f"vault-delete-{context['exec_id']}.yaml"
+        output_file = output_dir / f"vault-gke-{context['exec_id']}.yaml"
         
         renderer.render_to_file("vault-gke.j2", template_data, output_file)
-        
         logger.info(f"✅ YAML generated: {output_file}")
-        return True
         
+        return True
+    
     except TemplateRenderError as e:
         logger.warning(f"YAML generation failed: {e}")
         return False
-    except Exception as e:
-        logger.exception(f"Unexpected error during YAML generation: {e}")
-        return False
-
 
 def delete_vault_secret(
     vault_client: VaultClient,
@@ -182,13 +174,7 @@ def main() -> int:
         
         # Generate YAML manifest (if not disabled)
         # if not args.no_yaml:
-        template_dir = Path(config.template_dir)
-        yaml_generated = generate_vault_gke_yaml(
-            deleted_keys=deleted_keys,
-            context=context,
-            template_dir=template_dir,
-            vault_path=vault_path
-        )
+        yaml_generated = generate_vault_gke_yaml(deleted_keys, context, template_dir)
         
         if yaml_generated:
             logger.info("✅ YAML manifest generated successfully")
