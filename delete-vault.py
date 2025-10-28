@@ -174,6 +174,7 @@ def main() -> int:
         
         # Generate YAML manifest (if not disabled)
         # if not args.no_yaml:
+        template_dir = Path(config.template_dir)
         yaml_generated = generate_vault_gke_yaml(deleted_keys, context, template_dir)
         
         if yaml_generated:
