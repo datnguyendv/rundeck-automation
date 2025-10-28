@@ -153,7 +153,7 @@ def main() -> int:
         
         # Log configuration
         logger.info(f"Vault address: {config.vault.addr}")
-        logger.info(f"Vault path: {vault_path}")
+        logger.info(f"Vault path: {config.vault.path}")
         # logger.info(f"KV version: {args.kv_version}")
         # logger.info(f"Permanent deletion: {args.permanent}")
         # logger.info(f"Generate YAML: {not args.no_yaml}")
@@ -168,7 +168,7 @@ def main() -> int:
         # Perform deletion
         deleted_keys = delete_vault_secret(
             vault_client=vault_client,
-            vault_path=vault_path,
+            vault_path=config.vault.path,
             # permanent=args.permanent
         )
         
