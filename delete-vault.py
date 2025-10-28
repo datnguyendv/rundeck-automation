@@ -142,7 +142,6 @@ def main() -> int:
         context = get_rundeck_context()
         
         # Determine vault path
-        vault_path = args.vault_path or config.vault.path
         if not config.vault.path:
             logger.error("❌ Vault path is required (set VAULT_PATH or use --vault-path)")
             return 1
