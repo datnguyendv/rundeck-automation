@@ -5,7 +5,6 @@ from typing import Dict
 
 from utils import (
     setup_logger,
-    export_secret_to_env,
     AppConfig,
     TemplateRenderer,
     RundeckClient,
@@ -123,7 +122,6 @@ def main() -> int:
             addr=config.vault.addr,
             token=config.vault.token,
         )
-        export_secret_to_env(vault_client, "gke/ct-rundeck-env")
         # if context["action"] == "create":
         #     existing_secret = vault_client.read_secret(config.vault.path)
         #
