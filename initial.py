@@ -1,7 +1,7 @@
 import os
-from utils import setuplogger, AppConfig, VaultClient, VaultAPIError
+from utils import (setup_logger, AppConfig, VaultClient, VaultAPIError)
 
-logger = setuplogger(__name__)
+logger = setup_logger(__name__)
 
 def export_secret_to_env(vault_client: VaultClient, path: str):
     try:
@@ -27,7 +27,7 @@ def export_secret_to_env(vault_client: VaultClient, path: str):
         return 2
 
 def main():
-    config = AppConfig.fromenv()
+    config = AppConfig.from_env()
     if not config.vault.token or not config.vault.path:
         print("Vault token/path not provided")
         return 2
