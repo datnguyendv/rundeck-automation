@@ -115,7 +115,7 @@ class AppConfig:
     
         # Initialize all configs with vault_secrets
         return cls(
-            rundeck=RundeckConfig.from_env(vault_secrets["RD_TOKEN"]),
+            rundeck=RundeckConfig.from_env(vault_secrets["RD_TOKEN"], vault_secrets["RD_URL"]),
             vault=VaultConfig.from_env(vault_secrets[f"VAULT_ADDR_{env.upper()}"], vault_secrets[f"VAULT_TOKEN_{env.upper()}"]),
             slack=SlackConfig.from_env(vault_secrets["SLACK_WEBHOOK_URL"]),
             template_dir= f'{os.getenv("EXEC_LOCATION", ".")}/template',
