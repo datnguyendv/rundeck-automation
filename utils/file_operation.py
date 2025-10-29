@@ -1,6 +1,3 @@
-"""
-Simple file system operations
-"""
 import shutil
 import logging
 from pathlib import Path
