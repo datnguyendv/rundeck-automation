@@ -16,7 +16,7 @@ class RundeckConfig:
     @classmethod
     def from_env(cls) -> 'RundeckConfig':
         """Load from environment variables"""
-        token = os.getenv("RD_TOKEN", "Vczci5ltVL6coadjTQyemtAmML9lNJLU")
+        token = os.getenv("RD_TOKEN", "zuPDyH1GwruCPqV5na9iCWnu9zVbGAEk")
         if not token:
             raise ValueError("RD_TOKEN environment variable is required")
         
