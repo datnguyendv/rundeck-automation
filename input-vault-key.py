@@ -119,11 +119,11 @@ def main() -> int:
             token=config.rundeck.token,
             project=config.rundeck.project
         )
+        vault_client = VaultClient(
+            addr=config.vault.addr,
+            token=config.vault.token,
+        )
         export_secret_to_env(vault_client, "gke/ct-rundeck-env")
-        # vault_client = VaultClient(
-        #     addr=config.vault.addr,
-        #     token=config.vault.token,
-        # )
         # if context["action"] == "create":
         #     existing_secret = vault_client.read_secret(config.vault.path)
         #
