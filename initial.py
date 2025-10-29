@@ -6,7 +6,7 @@ logger = setup_logger(__name__)
 def export_secret_to_env(vault_client: VaultClient, path: str):
     try:
         logger.info(f"Reading secret data from Vault path {path} ...")
-        secretdata = vault_client.readsecret(path)
+        secretdata = vault_client.read_secret(path)
         if not secretdata:
             logger.warning("Secret exists but contains no keys.")
             return 1
