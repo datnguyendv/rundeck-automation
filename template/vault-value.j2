@@ -15,10 +15,11 @@
         autoSecureInput: "{{ autoSecureInput | default('false') }}"
         passSecureInput: "{{ passSecureInput | default('false') }}"
         script: |
-          echo "Approved by ${RD_JOB_USERNAME}" > /tmp/{{job_id}}/{{execution_uuid}}/approved
           export EXEC_LOCATION=$HOME/projects/$RD_JOB_PROJECT
           cat /tmp/$RD_JOB_ID/vault-gke-$RD_JOB_EXECID.yaml
+          python3 $EXEC_LOCATION/initial.py
           python3 $EXEC_LOCATION/clean-job.py --path /tmp/$RD_JOB_ID
+          echo "Approved by ${RD_JOB_USERNAME}" > /tmp/{{job_id}}/{{execution_uuid}}/approved
           echo "[SUCCESS] Secrets successfully ${RD_OPTION_ACTION}."
     keepgoing: false
     strategy: node-first
