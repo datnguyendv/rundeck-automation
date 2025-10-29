@@ -118,22 +118,22 @@ def main() -> int:
             token=config.rundeck.token,
             project=config.rundeck.project
         )
-        vault_client = VaultClient(
-            addr=config.vault.addr,
-            token=config.vault.token,
-        )
-        if context["action"] == "create":
-            existing_secret = vault_client.read_secret(config.vault.path)
-            
-            # Secret exists → raise error WITHOUT logging here
-            error_msg = (
-                f"❌ VALIDATION FAILED: Secret already exists at path '{config.vault.path}'\n"
-                f"Cannot create a secret that already exists.\n"
-                f"Please contact admin (SRE team) or use action 'update'/'delete'."
-            )
-            logger.error(error_msg)
-            # raise ValidationError(error_msg)  # Raise without logging
-            return 1
+        # vault_client = VaultClient(
+        #     addr=config.vault.addr,
+        #     token=config.vault.token,
+        # )
+        # if context["action"] == "create":
+        #     existing_secret = vault_client.read_secret(config.vault.path)
+        #
+        #     # Secret exists → raise error WITHOUT logging here
+        #     error_msg = (
+        #         f"❌ VALIDATION FAILED: Secret already exists at path '{config.vault.path}'\n"
+        #         f"Cannot create a secret that already exists.\n"
+        #         f"Please contact admin (SRE team) or use action 'update'/'delete'."
+        #     )
+        #     logger.error(error_msg)
+        #     # raise ValidationError(error_msg)  # Raise without logging
+        #     return 1
         # Setup paths
         base_dir = Path(__file__).resolve().parent
         output_dir = Path(f"/tmp/{context['job_id']}/{context['execution_uuid']}")
