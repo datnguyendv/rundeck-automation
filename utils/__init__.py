@@ -17,7 +17,6 @@ from .template_render import TemplateRenderer
 from .rundeck_client import RundeckClient
 from .vault_client import VaultClient
 from .file_operation import FileOperations, FileOperationError
-from .initial import export_secret_to_env
 
 __all__ = [
     # Config
@@ -25,7 +24,6 @@ __all__ = [
     'RundeckConfig',
     'VaultConfig',
     'SlackConfig',
-    'export_secret_to_env',
     
     # Logging
     'setup_logger',
