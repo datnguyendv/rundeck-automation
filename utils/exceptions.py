@@ -36,3 +36,7 @@ class ConfigurationError(BaseAppException):
 class ValidationError(BaseAppException):
     """Raised when input validation fails"""
     pass
+
+class GitOperationError(BaseAppException):
+    """Raised when git operations fail"""
+    pass

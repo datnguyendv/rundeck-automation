@@ -10,12 +10,14 @@ from .exceptions import (
     VaultAPIError,
     NotificationError,
     ConfigurationError,
-    ValidationError
+    ValidationError,
+    GitOperationError
 )
 from .notification import SlackNotifier, NotificationMessage, send_to_slack
 from .template_render import TemplateRenderer
 from .rundeck_client import RundeckClient
 from .vault_client import VaultClient
+from .git_client import GitClient
 from .file_operation import FileOperations, FileOperationError
 
 __all__ = [
