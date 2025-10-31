@@ -77,7 +77,7 @@ class GitConfig:
             token=token,
             # author_name=author_name or os.getenv("GIT_AUTHOR_NAME", "Rundeck Automation"),
             # author_name=username,
-            author_email=author_email or os.getenv("GIT_AUTHOR_EMAIL", "rundeck@company.com")
+            author_email=author_email
         )
 
 @dataclass
@@ -134,7 +134,7 @@ class AppConfig:
                 repo_url=vault_secrets["GIT_REPO_URL"],
                 username=vault_secrets.get("GIT_USERNAME"),
                 token=vault_secrets.get("GIT_TOKEN"),
-                author_email=vault_secrets.get("GIT_AUTHOR_EMAIL")
+                author_email=vault_secrets.get("GIT_EMAIL")
             ),
             template_dir= f'{os.getenv("EXEC_LOCATION", ".")}/template',
             output_dir= os.getenv("OUTPUT_DIR", "/tmp"),
