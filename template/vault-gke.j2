@@ -2,7 +2,17 @@
 {%- set env_upper = env | upper -%}
 {%- set env_lower = env | lower -%}
 
-vault_address: https://vault-cloud.chotot.com
+{%- if env_lower == 'dev' -%}
+  {%- set domain = 'vault-cloud.chotot.org' -%}
+{%- elif env_lower == 'uat' -%}
+  {%- set domain = 'vault-cloud.chotot.me' -%}
+{%- elif env_lower == 'prod' -%}
+  {%- set domain = 'vault-cloud.chotot.com' -%}
+{%- else -%}
+  {%- set domain = 'vault-cloud.chotot.local' -%}
+{%- endif -%}
+
+vault_address: https://{{ domain }}
 vault_token_env: CHOTOT_VAULT_GCP_{{ env_upper }}_TOKEN
 
 k8s_cluster_env: CHOTOT_GKE_{{ env_upper }}
