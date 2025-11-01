@@ -93,10 +93,8 @@ def generate_vault_gke_yaml_to_git(
         logger.info(f"Using git branch: {branch} for environment: {context['env']}")
 
         # Setup local repo path
-        repo_local_path = (
-            Path(config.output_dir)
-            / f"{context['job_id']}"
-            / f"config-repo-{context['exec_id']}"
+        repo_local_path = Path(
+            f"{config.output_dir}/{context['job_id']}/config-repo-{context['exec_id']}"
         )
 
         # Initialize Git client
