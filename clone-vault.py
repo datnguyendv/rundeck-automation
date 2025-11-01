@@ -6,6 +6,8 @@ from utils import (
     setup_logger,
     AppConfig,
     VaultClient,
+    GitClient,
+    GitOperationError,
     TemplateRenderError,
     TemplateRenderer,
     VaultAPIError,
@@ -30,17 +32,39 @@ def get_rundeck_context() -> Dict[str, str]:
     return context
 
 
-def generate_vault_gke_yaml(
-    keys: List[str], context: Dict[str, str], template_dir: Path
-) -> bool:
-    try:
-        template_file = template_dir / "vault-gke.j2"
+def get_git_branch_from_env(env: str) -> str:
+    """Map environment to git branch"""
+    branch_mapping = {"dev": "ct-dev", "uat": "ct-uat", "prod": "ct-prod"}
+    return branch_mapping.get(env.lower(), "ct-dev")
 
-        if not template_file.exists():
-            logger.warning(
-                f"Template '{template_file}' not found, skipping YAML generation"
-            )
-            return False
+
+def generate_vault_gke_yaml_to_git(
+    keys: List[str], context: Dict[str, str], config: AppConfig, template_dir: Path
+) -> bool:
+    if not config.git:
+        logger.error("Git configuration not available")
+        return False
+
+    try:
+        # Determine branch based on environment
+        branch = get_git_branch_from_env(context["env"])
+        logger.info(f"Using git branch: {branch} for environment: {context['env']}")
+
+        # Setup local repo path
+        repo_local_path = Path(
+            f"{config.output_dir}/{context['job_id']}/config-repo-{context['exec_id']}"
+        )
+
+        # Initialize Git client
+        git_client = GitClient(
+            repo_url=config.git.repo_url,
+            username=config.git.username,
+            token=config.git.token,
+        )
+
+        # Clone the repository
+        logger.info("=== STEP 1: Cloning Git Repository ===")
+        git_client.clone(repo_local_path, branch=branch, depth=1)
 
         # Prepare template data
         template_data = {
@@ -51,21 +75,37 @@ def generate_vault_gke_yaml(
             "vault_keys": keys,
         }
 
-        # Render template
+        # Generate YAML content
+        logger.info("=== STEP 2: Generating YAML Content ===")
         renderer = TemplateRenderer(template_dir=template_dir)
+        input_yaml_path = repo_local_path / "input.yaml"
+        renderer.render_to_file("vault-gke.j2", template_data, input_yaml_path)
 
-        # Save to file
-        output_dir = Path(f"/tmp/{context['job_id']}")
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / f"vault-gke-{context['exec_id']}.yaml"
+        logger.info(f"✅ YAML written to: {input_yaml_path}")
 
-        renderer.render_to_file("vault-gke.j2", template_data, output_file)
-        logger.info(f"✅ YAML generated: {output_file}")
+        # Commit and push changes
+        logger.info("=== STEP 4: Committing and Pushing Changes ===")
+        commit_message = (
+            f"{context['title']} on {context['env']} - (Job: {context['job_id']}"
+        )
 
+        git_client.commit_and_push(
+            repo_path=repo_local_path,
+            file_path="input.yaml",
+            commit_message=commit_message,
+            branch=branch,
+            author_name=config.git.username,
+            author_email=config.git.author_email,
+        )
+
+        logger.info("✅ YAML generated and pushed to Git successfully")
         return True
 
-    except TemplateRenderError as e:
-        logger.warning(f"YAML generation failed: {e}")
+    except (GitOperationError, TemplateRenderError) as e:
+        logger.error(f"Git/Template operation failed: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error in Git workflow: {e}")
         return False
 
 
@@ -195,7 +235,9 @@ def main():
         keys = list(source_data.keys())
         context["action"] = action
         template_dir = Path(config.template_dir)
-        yaml_generated = generate_vault_gke_yaml(keys, context, template_dir)
+        yaml_generated = generate_vault_gke_yaml_to_git(
+            keys, context, config, template_dir
+        )
 
         if yaml_generated:
             logger.info("✅ YAML manifest generated successfully")
