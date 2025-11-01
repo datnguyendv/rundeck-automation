@@ -153,37 +153,6 @@ def generate_vault_gke_yaml_to_git(
         return False
 
 
-def generate_vault_gke_yaml(
-    keys: List[str], context: Dict[str, str], template_dir: Path
-) -> bool:
-    try:
-        # Prepare template data
-        template_data = {
-            "ENV": context["env"],
-            "vault_name": context["vault_name"],
-            "namespace": context["namespace"],
-            "action": context["action"],
-            "vault_keys": keys,
-        }
-
-        # Render template
-        renderer = TemplateRenderer(template_dir=template_dir)
-
-        # Save to file
-        output_dir = Path(f"/tmp/{context['job_id']}")
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / f"vault-gke-{context['exec_id']}.yaml"
-
-        renderer.render_to_file("vault-gke.j2", template_data, output_file)
-        logger.info(f"✅ YAML generated: {output_file}")
-
-        return True
-
-    except TemplateRenderError as e:
-        logger.warning(f"YAML generation failed: {e}")
-        return False
-
-
 def gather_secret_data(keys: List[str]) -> Dict[str, str]:
     data_dict = {}
     missing_keys = []
@@ -271,18 +240,9 @@ def main() -> int:
             logger.info("STEP 1: Generating vault-gke YAML")
             logger.info("=" * 80)
             template_dir = Path(config.template_dir)
-            # Use Git workflow if available and not skipped
-            if config.git:
-                yaml_success = generate_vault_gke_yaml_to_git(
-                    keys, rundeck_context, config, template_dir
-                )
-            else:
-                # Fallback to legacy /tmp behavior
-                logger.info("Using legacy /tmp YAML generation")
-                yaml_success = generate_vault_gke_yaml(
-                    keys, rundeck_context, template_dir
-                )
-
+            yaml_success = generate_vault_gke_yaml_to_git(
+                keys, rundeck_context, config, template_dir
+            )
             if not yaml_success:
                 logger.warning("⚠️ YAML generation failed (non-critical)")
         else:
