@@ -6,7 +6,6 @@
         script: |
           # This will add into 
           export VAULT_ADDR="http://vault:8200"
-          export VAULT_PATH="gke/${RD_OPTION_VAULTNAME}"
           export EXEC_LOCATION=$HOME/projects/$RD_JOB_PROJECT
           echo $EXEC_LOCATION
           ls $EXEC_LOCATION
@@ -15,6 +14,7 @@
         autoSecureInput: "{{ autoSecureInput | default('false') }}"
         passSecureInput: "{{ passSecureInput | default('false') }}"
         script: |
+          export VAULT_ADDR="http://vault:8200"
           export EXEC_LOCATION=$HOME/projects/$RD_JOB_PROJECT
           python3 $EXEC_LOCATION/initial.py
           python3 $EXEC_LOCATION/clean-job.py --path /tmp/$RD_JOB_ID
