@@ -124,7 +124,7 @@ def generate_vault_gke_yaml_to_git(
 
         # Commit and push changes
         logger.info("=== STEP 4: Committing and Pushing Changes ===")
-        commit_message = f"Update input.yaml for {context['env']} - {context['vault_name']} (Job: {context['job_id']}, User: {config.git.username})"
+        commit_message = f"{context['action']} vault for {context['vault_name']} on {context['env']} - (Job: {context['job_id']}"
 
         git_client.commit_and_push(
             repo_path=repo_local_path,
