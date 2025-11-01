@@ -265,7 +265,7 @@ def main() -> int:
             logger.info("=" * 80)
             template_dir = Path(config.template_dir)
             # Use Git workflow if available and not skipped
-            if config.git and not args.skip_git:
+            if config.git:
                 yaml_success = generate_vault_gke_yaml_to_git(
                     keys, rundeck_context, config, template_dir
                 )
