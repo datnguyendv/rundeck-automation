@@ -1,6 +1,3 @@
-"""
-Utils package for Rundeck/Vault automation
-"""
 from .config import AppConfig, RundeckConfig, VaultConfig, SlackConfig
 from .logger import setup_logger
 from .exceptions import (
@@ -11,7 +8,7 @@ from .exceptions import (
     NotificationError,
     ConfigurationError,
     ValidationError,
-    GitOperationError
+    GitOperationError,
 )
 from .notification import SlackNotifier, NotificationMessage, send_to_slack
 from .template_render import TemplateRenderer
@@ -22,31 +19,29 @@ from .file_operation import FileOperations, FileOperationError
 
 __all__ = [
     # Config
-    'AppConfig',
-    'RundeckConfig',
-    'VaultConfig',
-    'SlackConfig',
-    
+    "AppConfig",
+    "RundeckConfig",
+    "VaultConfig",
+    "SlackConfig",
+    "GitClient",
     # Logging
-    'setup_logger',
-    
+    "setup_logger",
     # Exceptions
-    'BaseAppException',
-    'TemplateRenderError',
-    'RundeckAPIError',
-    'VaultAPIError',
-    'NotificationError',
-    'ConfigurationError',
-    'ValidationError',
-    
+    "BaseAppException",
+    "TemplateRenderError",
+    "RundeckAPIError",
+    "VaultAPIError",
+    "NotificationError",
+    "ConfigurationError",
+    "ValidationError",
     # Clients
-    'SlackNotifier',
-    'NotificationMessage',
-    'send_to_slack',
-    'TemplateRenderer',
-    'RundeckClient',
-    'VaultClient',
-    'FileOperations',
-    'FileOperationError'
+    "SlackNotifier",
+    "NotificationMessage",
+    "send_to_slack",
+    "TemplateRenderer",
+    "RundeckClient",
+    "VaultClient",
+    "FileOperations",
+    "FileOperationError",
+    "GitOperationError",
 ]
-
