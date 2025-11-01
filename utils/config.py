@@ -120,7 +120,7 @@ class AppConfig:
     @classmethod
     def from_env(
         cls,
-        vault_token: Optional[str],
+        vault_token: Optional[str] = None,
         vault_path: str = "gke/ct-rundeck-env",
     ) -> "AppConfig":
         vault_secrets = {}
