@@ -61,6 +61,7 @@ def parse_input_keys(input_string: str) -> List[str]:
 
 def get_rundeck_context() -> Dict[str, str]:
     context = {
+        "title": os.environ.get("RD_JOB_NAME"),
         "env": os.environ.get("RD_OPTION_ENV", "dev"),
         "vault_name": os.environ.get("RD_OPTION_VAULTNAME", "default-service"),
         "namespace": os.environ.get("RD_OPTION_NAMESPACE", "default"),
@@ -124,7 +125,9 @@ def generate_vault_gke_yaml_to_git(
 
         # Commit and push changes
         logger.info("=== STEP 4: Committing and Pushing Changes ===")
-        commit_message = f"{context['action']} vault for {context['vault_name']} on {context['env']} - (Job: {context['job_id']}"
+        commit_message = (
+            f"{context['title']} on {context['env']} - (Job: {context['job_id']}"
+        )
 
         git_client.commit_and_push(
             repo_path=repo_local_path,
