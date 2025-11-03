@@ -185,6 +185,7 @@ def main() -> int:
 
         response_data = rundeck.import_job(output_file)
         job_link = rundeck.get_job_permalink(response_data)
+        thread_file = Path(f"/tmp/{response_data['succeeded'][0]['id']}.json")
 
         # Step 4: Send notification
         logger.info("\n" + "=" * 80)
@@ -199,7 +200,12 @@ def main() -> int:
             message = NotificationMessage(
                 title=job_name, link=job_link, user=context["user"]
             )
-            notifier.send(message)
+            # notifier.send(message)
+            slack_response = notifier.send(message)
+            import json
+
+            with open(thread_file, "w") as f:
+                json.dump(slack_response, f, indent=2)
         else:
             logger.warning("Slack notifications disabled (no webhook URL)")
 

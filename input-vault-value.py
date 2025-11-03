@@ -250,12 +250,25 @@ def main() -> int:
             notifier = SlackNotifier(
                 bot_token=config.slack.bot_token, channel_id=config.slack.channel_id
             )
-
             message = NotificationMessage(
                 title=f"{rundeck_context['title']} successfully",
                 user=rundeck_context["user"],
             )
-            notifier.send(message)
+
+            # Try to read thread info from file
+            import json
+
+            thread_file = Path(f"/tmp/{rundeck_context['job_id']}.json")
+            thread_ts = None
+            try:
+                with open(thread_file, "r") as f:
+                    thread_info = json.load(f)
+                    thread_ts = thread_info.get("ts")
+                    logger.info(f"📌 Found thread info: ts={thread_ts}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to read thread file: {e}")
+
+            notifier.send(message, thread_ts)
         else:
             logger.warning("Slack notifications disabled (no webhook URL)")
 
