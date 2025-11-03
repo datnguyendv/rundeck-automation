@@ -192,7 +192,10 @@ def main() -> int:
         logger.info("=" * 80)
 
         if config.slack.enabled:
-            notifier = SlackNotifier(webhook_url=config.slack.webhook_url)
+            notifier = SlackNotifier(
+                bot_token=config.slack.bot_token, channel_id=config.slack.channel_id
+            )
+
             message = NotificationMessage(
                 title=job_name, link=job_link, user=context["user"]
             )

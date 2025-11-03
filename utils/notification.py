@@ -60,7 +60,7 @@ class SlackNotifier:
         self.color = "#36a64f"
 
         # Initialize Slack client nếu có bot token
-        self.client = WebClient(token=bot_token) if bot_token else None
+        self.client = WebClient(token=bot_token)
 
     def send(
         self,
