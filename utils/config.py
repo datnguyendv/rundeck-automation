@@ -98,12 +98,24 @@ class GitConfig:
 
 @dataclass
 class SlackConfig:
-    webhook_url: Optional[str]
+    webhook_url: Optional[str] = None  # Giữ lại để backward compatible
+    bot_token: Optional[str] = None  # Thêm bot token
+    channel_id: Optional[str] = None  # Channel ID mặc định
     enabled: bool = True
 
     @classmethod
-    def from_env(cls, webhook_url: Optional[str]) -> "SlackConfig":
-        return cls(webhook_url=webhook_url, enabled=bool(webhook_url))
+    def from_env(
+        cls,
+        webhook_url: Optional[str],
+        bot_token: Optional[str] = None,
+        channel_id: Optional[str] = None,
+    ) -> "SlackConfig":
+        return cls(
+            webhook_url=webhook_url,
+            bot_token=bot_token,
+            channel_id=channel_id,
+            enabled=bool(bot_token or webhook_url),
+        )
 
 
 @dataclass
@@ -153,7 +165,12 @@ class AppConfig:
                 vault_secrets[f"VAULT_ADDR_{env.upper()}"],
                 vault_secrets[f"VAULT_TOKEN_{env.upper()}"],
             ),
-            slack=SlackConfig.from_env(vault_secrets.get("SLACK_WEBHOOK_URL")),
+            # slack=SlackConfig.from_env(vault_secrets.get("SLACK_WEBHOOK_URL")),
+            slack=SlackConfig.from_env(
+                webhook_url=vault_secrets.get("SLACK_WEBHOOK_URL"),
+                bot_token=vault_secrets.get("SLACK_BOT_TOKEN"),
+                channel_id=vault_secrets.get("SLACK_CHANNEL_ID"),
+            ),
             git=GitConfig.from_env(
                 repo_url=vault_secrets["GIT_REPO_URL"],
                 username=vault_secrets.get("GIT_USERNAME"),

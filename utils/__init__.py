@@ -10,7 +10,7 @@ from .exceptions import (
     ValidationError,
     GitOperationError,
 )
-from .notification import SlackNotifier, NotificationMessage, send_to_slack
+from .notification import SlackNotifier, NotificationMessage
 from .template_render import TemplateRenderer
 from .rundeck_client import RundeckClient
 from .vault_client import VaultClient
@@ -37,7 +37,6 @@ __all__ = [
     # Clients
     "SlackNotifier",
     "NotificationMessage",
-    "send_to_slack",
     "TemplateRenderer",
     "RundeckClient",
     "VaultClient",

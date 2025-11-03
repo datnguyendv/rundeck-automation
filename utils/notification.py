@@ -1,7 +1,7 @@
-import logging
-import requests
 from typing import Optional
 from dataclasses import dataclass
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 
 from .exceptions import NotificationError
 from .logger import setup_logger
@@ -14,59 +14,101 @@ class NotificationMessage:
     title: str
     link: str
     user: str
-    color: str = "#36a64f"
 
-    def to_slack_payload(self) -> dict:
-        """Convert to Slack attachment format"""
-        return {
-            "attachments": [
-                {
-                    "color": self.color,
-                    "title": f":rocket: {self.title}",
-                    "text": f"🔗 *Link:* <{self.link}>\n👤 *Created By:* {self.user}",
-                    "footer": "Rundeck Automation",
-                    "ts": None,  # Slack will add timestamp
-                }
-            ]
-        }
+    def to_slack_blocks(self) -> list:
+        return [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f":rocket: {self.title}",
+                    "emoji": True,
+                },
+            },
+            {
+                "type": "section",
+                "fields": [
+                    {"type": "mrkdwn", "text": f":link: *Link:* {self.link}\n"},
+                    {
+                        "type": "mrkdwn",
+                        "text": f":bust_in_silhouette: *Created By:* {self.user}",
+                    },
+                ],
+            },
+            {
+                "type": "context",
+                "elements": [{"type": "mrkdwn", "text": "Rundeck Automation"}],
+            },
+        ]
 
 
 class SlackNotifier:
     def __init__(
-        self, webhook_url: Optional[str] = None, timeout: int = 10, max_retries: int = 3
+        self,
+        bot_token: Optional[str] = None,
+        webhook_url: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        timeout: int = 10,
+        # color: str = ,
+        max_retries: int = 3,
     ):
+        self.bot_token = bot_token
         self.webhook_url = webhook_url
+        self.channel_id = channel_id
         self.timeout = timeout
         self.max_retries = max_retries
+        self.color = "#36a64f"
 
-    def send(self, message: NotificationMessage) -> bool:
-        if not self.webhook_url:
-            logger.warning("Slack webhook URL not configured, skipping notification")
-            return False
+        # Initialize Slack client nếu có bot token
+        self.client = WebClient(token=bot_token) if bot_token else None
 
-        payload = message.to_slack_payload()
+    def send(
+        self,
+        message: NotificationMessage,
+        thread_ts: Optional[str] = None,
+    ) -> Optional[dict]:
+        if not self.channel_id:
+            logger.error("No channel specified and no default channel configured")
+            return None
 
         for attempt in range(1, self.max_retries + 1):
             try:
                 logger.info(
-                    f"Sending Slack notification (attempt {attempt}/{self.max_retries})"
-                )
-                response = requests.post(
-                    self.webhook_url, json=payload, timeout=self.timeout
+                    f"Sending Slack message via API (attempt {attempt}/{self.max_retries})"
                 )
 
-                if response.status_code == 200:
-                    logger.info("✅ Slack notification sent successfully")
-                    return True
-                else:
-                    logger.error(
-                        f"Slack API error: {response.status_code} - {response.text}"
+                response = self.client.chat_postMessage(
+                    channel=self.channel_id,
+                    blocks=message.to_slack_blocks(),
+                    text=message.title,
+                    thread_ts=thread_ts,
+                )
+
+                if response["ok"]:
+                    logger.info(
+                        f":white_check_mark: Slack message sent successfully to {self.channel_id}"
                     )
+                    # Return timestamp và channel để có thể reply sau
+                    return {
+                        "ts": response["ts"],
+                        "channel": response["channel"],
+                        "thread_ts": response.get("thread_ts", response["ts"]),
+                    }
+                else:
+                    logger.error(f"Slack API returned ok=False: {response}")
 
-            except requests.exceptions.Timeout:
-                logger.warning(f"Slack request timeout on attempt {attempt}")
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Slack request failed on attempt {attempt}: {e}")
+            except SlackApiError as e:
+                logger.error(
+                    f"Slack API error on attempt {attempt}: {e.response['error']}"
+                )
+                if e.response["error"] in ["channel_not_found", "not_in_channel"]:
+                    logger.error(
+                        f"Bot không có quyền truy cập channel {self.channel_id}"
+                    )
+                    break  # Không retry nếu lỗi permission
+
+            except Exception as e:
+                logger.error(f"Unexpected error on attempt {attempt}: {e}")
 
             if attempt < self.max_retries:
                 logger.info("Retrying in 2 seconds...")
@@ -74,20 +116,6 @@ class SlackNotifier:
 
                 time.sleep(2)
 
-        error_msg = (
-            f"Failed to send Slack notification after {self.max_retries} attempts"
-        )
+        error_msg = f"Failed to send Slack message after {self.max_retries} attempts"
         logger.error(error_msg)
         raise NotificationError(error_msg)
-
-    def send_simple(self, title: str, link: str, user: str) -> bool:
-        message = NotificationMessage(title=title, link=link, user=user)
-        return self.send(message)
-
-
-# Backward compatibility function
-def send_to_slack(
-    title: str, link: str, user: str, webhook_url: Optional[str] = None
-) -> bool:
-    notifier = SlackNotifier(webhook_url=webhook_url)
-    return notifier.send_simple(title, link, user)
