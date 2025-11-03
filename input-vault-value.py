@@ -62,7 +62,7 @@ def parse_input_keys(input_string: str) -> List[str]:
 
 def get_rundeck_context() -> Dict[str, str]:
     context = {
-        "title": os.environ.get("RD_JOB_NAME"),
+        "title": f"{os.environ.get('RD_JOB_NAME')} on {os.environ.get('RD_OPTION_ENV', 'dev')}",
         "env": os.environ.get("RD_OPTION_ENV", "dev"),
         "vault_name": os.environ.get("RD_OPTION_VAULTNAME", "default-service"),
         "namespace": os.environ.get("RD_OPTION_NAMESPACE", "default"),
@@ -129,9 +129,7 @@ def generate_vault_gke_yaml_to_git(
 
         # Commit and push changes
         logger.info("=== STEP 4: Committing and Pushing Changes ===")
-        commit_message = (
-            f"{context['title']} on {context['env']} - (Job: {context['job_id']}"
-        )
+        commit_message = f"{context['title']} - (Job: {context['job_id']}"
 
         git_client.commit_and_push(
             repo_path=repo_local_path,
@@ -254,7 +252,8 @@ def main() -> int:
             )
 
             message = NotificationMessage(
-                title=rundeck_context["title"], user=rundeck_context["user"]
+                title=f"{rundeck_context['title']} successfully",
+                user=rundeck_context["user"],
             )
             notifier.send(message)
         else:
