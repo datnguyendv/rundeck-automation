@@ -8,7 +8,6 @@ from utils import (
     AppConfig,
     TemplateRenderer,
     RundeckClient,
-    VaultClient,
     SlackNotifier,
     NotificationMessage,
     TemplateRenderError,
