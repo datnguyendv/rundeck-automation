@@ -15,6 +15,7 @@ from utils import (
     TemplateRenderError,
     ValidationError,
 )
+from utils.notification import NotificationMessage, SlackNotifier
 
 logger = setup_logger(__name__)
 
@@ -67,6 +68,7 @@ def get_rundeck_context() -> Dict[str, str]:
         "namespace": os.environ.get("RD_OPTION_NAMESPACE", "default"),
         "action": os.environ.get("RD_OPTION_ACTION", "create"),
         "job_id": os.environ.get("RD_JOB_ID", "default"),
+        "user": os.getenv("RD_JOB_USERNAME", "system"),
         "exec_id": os.environ.get("RD_JOB_EXECID", "0"),
     }
 
@@ -245,6 +247,18 @@ def main() -> int:
                 logger.warning("⚠️ YAML generation failed (non-critical)")
         else:
             logger.info("Skipping YAML generation (--skip-yaml)")
+
+        if config.slack.enabled:
+            notifier = SlackNotifier(
+                bot_token=config.slack.bot_token, channel_id=config.slack.channel_id
+            )
+
+            message = NotificationMessage(
+                title=rundeck_context["title"], user=rundeck_context["user"]
+            )
+            notifier.send(message)
+        else:
+            logger.warning("Slack notifications disabled (no webhook URL)")
 
         # Success
         logger.info("\n" + "=" * 80)

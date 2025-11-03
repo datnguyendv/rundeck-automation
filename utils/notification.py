@@ -11,11 +11,24 @@ logger = setup_logger(__name__)
 
 @dataclass
 class NotificationMessage:
-    title: str
-    link: str
-    user: str
+    def __init__(self, title: str, user: str, link: Optional[str] = None):
+        self.title = title
+        self.link = link
+        self.user = user
 
     def to_slack_blocks(self) -> list:
+        fields = [
+            {
+                "type": "mrkdwn",
+                "text": f":bust_in_silhouette: *Created By:* {self.user}",
+            }
+        ]
+
+        if self.link:
+            fields.insert(
+                0, {"type": "mrkdwn", "text": f":link: *Link:* {self.link}\n"}
+            )
+
         return [
             {
                 "type": "header",
@@ -27,13 +40,7 @@ class NotificationMessage:
             },
             {
                 "type": "section",
-                "fields": [
-                    {"type": "mrkdwn", "text": f":link: *Link:* {self.link}\n"},
-                    {
-                        "type": "mrkdwn",
-                        "text": f":bust_in_silhouette: *Created By:* {self.user}",
-                    },
-                ],
+                "fields": fields,
             },
             {
                 "type": "context",
