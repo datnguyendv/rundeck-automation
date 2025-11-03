@@ -258,7 +258,9 @@ def main() -> int:
             # Try to read thread info from file
             import json
 
-            thread_file = Path(f"/tmp/{rundeck_context['job_id']}.json")
+            thread_file = Path(
+                f"/tmp/{rundeck_context['job_id']}/{rundeck_context['job_id']}.json"
+            )
             thread_ts = None
             try:
                 with open(thread_file, "r") as f:

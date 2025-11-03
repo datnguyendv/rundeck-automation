@@ -185,7 +185,9 @@ def main() -> int:
 
         response_data = rundeck.import_job(output_file)
         job_link = rundeck.get_job_permalink(response_data)
-        thread_file = Path(f"/tmp/{response_data['succeeded'][0]['id']}.json")
+        thread_file = Path(
+            f"/tmp/{response_data['succeeded'][0]['id']}/{response_data['succeeded'][0]['id']}.json"
+        )
 
         # Step 4: Send notification
         logger.info("\n" + "=" * 80)
