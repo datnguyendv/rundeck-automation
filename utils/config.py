@@ -17,8 +17,8 @@ def load_secrets_from_vault(vault_client: VaultClient, path: str) -> Dict[str, A
             return {}
 
         logger.info(f"Successfully loaded {len(secretdata)} secrets from Vault")
-        for key in secretdata.keys():
-            logger.info(f"Loaded secret key: {key}")
+        # for key in secretdata.keys():
+        # logger.info(f"Loaded secret key: {key}")
         return secretdata
 
     except VaultAPIError as e:

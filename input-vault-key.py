@@ -52,10 +52,10 @@ def generate_job_data(context: Dict[str, str]) -> Dict:
         if not vault_keys:
             raise ConfigurationError("No valid vault keys provided")
 
-        logger.info(f"Vault name: {context['vault_name']}")
-        logger.info(f"Namespace: {context['namespace']}")
-        logger.info(f"Action: {context['action']}")
-        logger.info(f"Vault keys: {', '.join(vault_keys)}")
+        # logger.info(f"Vault name: {context['vault_name']}")
+        # logger.info(f"Namespace: {context['namespace']}")
+        # logger.info(f"Action: {context['action']}")
+        # logger.info(f"Vault keys: {', '.join(vault_keys)}")
 
         # Generate job name
         job_name = f"{context['action']} vault value for {context['vault_name']}"
@@ -158,8 +158,8 @@ def main() -> int:
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / f"approval_job_{context['exec_id']}.yaml"
 
-        logger.info(f"Output directory: {output_dir}")
-        logger.info(f"Output file: {output_file}")
+        # logger.info(f"Output directory: {output_dir}")
+        # logger.info(f"Output file: {output_file}")
 
         # Step 1: Generate job data
         logger.info("\n" + "=" * 80)
@@ -186,7 +186,8 @@ def main() -> int:
         response_data = rundeck.import_job(output_file)
         job_link = rundeck.get_job_permalink(response_data)
         thread_file = Path(
-            f"/tmp/{response_data['succeeded'][0]['id']}/{response_data['succeeded'][0]['id']}.json"
+            # f"/tmp/{response_data['succeeded'][0]['id']}/{response_data['succeeded'][0]['id']}.json"
+            f"/tmp/{response_data['succeeded'][0]['id']}.json"
         )
 
         # Step 4: Send notification

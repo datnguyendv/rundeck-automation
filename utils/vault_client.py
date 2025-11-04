@@ -38,7 +38,7 @@ class VaultClient:
             payload = {"data": data}
             url = f"{self.addr}/v1/{path}"
 
-        logger.info(f"Writing secrets to Vault (KV v{self.kv_version})")
+        logger.debug(f"Writing secrets to Vault (KV v{self.kv_version})")
         logger.info(f"Path: {path}")
         logger.debug(f"Secret keys: {list(data.keys())}")
 
@@ -101,7 +101,7 @@ class VaultClient:
                 # KV v2: data is nested under data.data
                 data = result.get("data", {}).get("data", {})
 
-            logger.info(f"✅ Read {len(data)} secrets from Vault")
+            logger.debug(f"✅ Read {len(data)} secrets from Vault")
             return data
 
         except requests.exceptions.HTTPError as e:
